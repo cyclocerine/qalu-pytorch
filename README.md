@@ -3,6 +3,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-1.12+-ee4c2c.svg)](https://pytorch.org/)
+[![PyPI](https://img.shields.io/pypi/v/qalu-pytorch.svg)](https://pypi.org/project/qalu-pytorch/)
 [![SSRN](https://img.shields.io/badge/SSRN-7365098-blue.svg)](https://ssrn.com/abstract=7365098)
 [![DOI](https://img.shields.io/badge/DOI-10.2139%2Fssrn.7365098-blue.svg)](http://dx.doi.org/10.2139/ssrn.7365098)
 [![Paper PDF](https://img.shields.io/badge/Paper-PDF-red.svg)](paper/Q_ALU_Research_Paper.pdf)
@@ -96,6 +97,13 @@ $$
 ## Quickstart
 
 ### Installation
+
+Install via pip:
+```bash
+pip install qalu-pytorch
+```
+
+Or install from source:
 ```bash
 git clone https://github.com/cyclocerine/qalu-pytorch.git
 cd qalu-pytorch
