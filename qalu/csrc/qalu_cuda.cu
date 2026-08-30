@@ -1,0 +1,158 @@
+#include <cuda_runtime.h>
+#include <math.h>
+
+/**
+ * Q-ALU CUDA Kernels
+ * Optimized for NVIDIA Tensor Core architectures (Ampere / Ada Lovelace / Blackwell / RTX 5090).
+ */
+
+// =========================================================================
+// FORWARD KERNEL: Q-ALU Canonical (FP32)
+// =========================================================================
+__global__ void qalu_forward_kernel_fp32(
+    const float* __restrict__ input,
+    float* __restrict__ output,
+    int size,
+    float alpha,
+    float beta,
+    float gamma,
+    float delta)
+{
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx < size) {
+        float x = input[idx];
+        if (x >= 0.0f) {
+            float u = x / beta;
+            float t = tanhf(u);
+            output[idx] = alpha * x * (1.0f + t);
+        } else {
+            float u = x / delta;
+            output[idx] = -gamma * x * expm1f(u);
+        }
+    }
+}
+
+// =========================================================================
+// BACKWARD KERNEL: Q-ALU Canonical (FP32)
+// =========================================================================
+__global__ void qalu_backward_kernel_fp32(
+    const float* __restrict__ grad_output,
+    const float* __restrict__ input,
+    float* __restrict__ grad_input,
+    int size,
+    float alpha,
+    float beta,
+    float gamma,
+    float delta)
+{
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx < size) {
+        float x = input[idx];
+        float dy = grad_output[idx];
+        float dx = 0.0f;
+
+        if (x >= 0.0f) {
+            float u = x / beta;
+            float t = tanhf(u);
+            float sech2 = 1.0f - t * t;
+            dx = alpha * (1.0f + t + u * sech2);
+        } else {
+            float u = x / delta;
+            float exp_u = expf(u);
+            dx = -gamma * (expm1f(u) + u * exp_u);
+        }
+        grad_input[idx] = dy * dx;
+    }
+}
+
+// =========================================================================
+// FORWARD KERNEL: Q-ALU Variant (FP32)
+// =========================================================================
+__global__ void qalu2_forward_kernel_fp32(
+    const float* __restrict__ input,
+    float* __restrict__ output,
+    int size,
+    float alpha,
+    float beta,
+    float gamma,
+    float delta)
+{
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx < size) {
+        float x = input[idx];
+        if (x >= 0.0f) {
+            float u = x / beta;
+            float t = tanhf(u);
+            output[idx] = alpha * x * (t + t * t);
+        } else {
+            float u = x / delta;
+            output[idx] = -gamma * x * expm1f(u);
+        }
+    }
+}
+
+// =========================================================================
+// BACKWARD KERNEL: Q-ALU 2.0 (FP32)
+// =========================================================================
+__global__ void qalu2_backward_kernel_fp32(
+    const float* __restrict__ grad_output,
+    const float* __restrict__ input,
+    float* __restrict__ grad_input,
+    int size,
+    float alpha,
+    float beta,
+    float gamma,
+    float delta)
+{
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx < size) {
+        float x = input[idx];
+        float dy = grad_output[idx];
+        float dx = 0.0f;
+
+        if (x >= 0.0f) {
+            float u = x / beta;
+            float t = tanhf(u);
+            float sech2 = 1.0f - t * t;
+            dx = alpha * (t + t * t + u * sech2 * (1.0f + 2.0f * t));
+        } else {
+            float u = x / delta;
+            float exp_u = expf(u);
+            dx = -gamma * (expm1f(u) + u * exp_u);
+        }
+        grad_input[idx] = dy * dx;
+    }
+}
+
+// =========================================================================
+// FORWARD KERNEL: Q-ALU Ultra (Dynamic Volatility Conditioning)
+// =========================================================================
+__global__ void qalu_ultra_forward_kernel_fp32(
+    const float* __restrict__ input,
+    const float* __restrict__ vol_ratios, // Rasio volatilitas per sampel/batch
+    float* __restrict__ output,
+    int size,
+    float alpha,
+    float beta,
+    float delta,
+    float fee_threshold,
+    float loss_aversion)
+{
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx < size) {
+        float x = input[idx];
+        float v_ratio = (vol_ratios != nullptr) ? vol_ratios[idx] : 1.0f;
+        float eff_beta = (beta + fee_threshold) * v_ratio;
+        float eff_delta = (delta + fee_threshold) * v_ratio;
+        float gamma = 2.0f * alpha * loss_aversion;
+
+        if (x >= 0.0f) {
+            float u = x / eff_beta;
+            float t = tanhf(u);
+            output[idx] = alpha * x * (t + t * t);
+        } else {
+            float u = x / eff_delta;
+            output[idx] = -gamma * x * expm1f(u);
+        }
+    }
+}

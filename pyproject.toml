@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "qalu-pytorch"
+version = "1.0.0"
+description = "Q-ALU: Quant Asymmetric Leaky Unit: A Market Psychology Aware Activation Function with Downside Risk Protection for High Frequency Quantitative Trading and Deep Reinforcement Learning"
+readme = "README.md"
+authors = [{ name = "Faiq Hammam Mutaqin", email = "hammamfaiq@protonmail.com" }]
+license = { text = "MIT" }
+keywords = ["deep-learning", "activation-function", "quantitative-finance", "high-frequency-trading", "reinforcement-learning", "ppo", "pytorch"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Financial and Insurance Industry",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3"
+]
+dependencies = [
+    "numpy>=1.20.0"
+]
+
+[project.urls]
+Homepage = "https://github.com/cyclocerine/qalu-pytorch"
+Repository = "https://github.com/cyclocerine/qalu-pytorch.git"
+"Bug Tracker" = "https://github.com/cyclocerine/qalu-pytorch/issues"
+Paper = "https://ssrn.com/abstract=7365098"
+DOI = "http://dx.doi.org/10.2139/ssrn.7365098"
