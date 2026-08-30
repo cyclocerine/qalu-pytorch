@@ -5,7 +5,7 @@
 [![PyTorch](https://img.shields.io/badge/PyTorch-1.12+-ee4c2c.svg)](https://pytorch.org/)
 [![SSRN](https://img.shields.io/badge/SSRN-7365098-blue.svg)](https://ssrn.com/abstract=7365098)
 [![DOI](https://img.shields.io/badge/DOI-10.2139%2Fssrn.7365098-blue.svg)](http://dx.doi.org/10.2139/ssrn.7365098)
-[![Paper PDF](https://img.shields.io/badge/Paper-IEEE_PDF-red.svg)](paper/Q_ALU_Research_Paper.pdf)
+[![Paper PDF](https://img.shields.io/badge/Paper-PDF-red.svg)](paper/Q_ALU_Research_Paper.pdf)
 
 > **A Market Psychology Aware Activation Function with Downside Risk Protection for High Frequency Quantitative Trading and Deep Reinforcement Learning**
 
@@ -13,15 +13,15 @@ Developed by **Faiq Hammam Mutaqin** (*Independent Researcher, Indonesia*).
 
 ---
 
-### 📖 Official Paper Publication
+### Official Paper Publication
 
 > **Mutaqin, Faiq Hammam**, *Q-ALU: Quant Asymmetric Leaky Unit: A Market Psychology Aware Activation Function with Downside Risk Protection for High Frequency Quantitative Trading and Deep Reinforcement Learning* (August 13, 2026). Available at SSRN: [https://ssrn.com/abstract=7365098](https://ssrn.com/abstract=7365098) or [http://dx.doi.org/10.2139/ssrn.7365098](http://dx.doi.org/10.2139/ssrn.7365098).
 >
-> **Camera-Ready IEEE Two-Column PDF:** [`paper/Q_ALU_Research_Paper.pdf`](paper/Q_ALU_Research_Paper.pdf)
+> **Research Paper PDF:** [`paper/Q_ALU_Research_Paper.pdf`](paper/Q_ALU_Research_Paper.pdf)
 
 ---
 
-## 📌 Overview
+## Overview
 
 Traditional deep learning activation functions (such as **ReLU**, **GELU**, and **Swish/SiLU**) were fundamentally designed for computer vision and natural language processing under the implicit assumption of isotropic, symmetric feature representations. However, in quantitative finance and algorithmic portfolio management:
 
@@ -33,7 +33,7 @@ Traditional deep learning activation functions (such as **ReLU**, **GELU**, and 
 
 ---
 
-## 📐 Mathematical Formulation
+## Mathematical Formulation
 
 ### Formal Definition
 Let $x \in \mathbb{R}$ denote the pre-activation input. The Quant Asymmetric Leaky Unit (Q-ALU) is defined piecewise as:
@@ -75,7 +75,7 @@ $$
 
 ---
 
-## 📊 Visual Analysis
+## Visual Analysis
 
 <p align="center">
   <img src="paper/figures/fig1_activation_curves.png" width="48%" alt="Activation Curves" />
@@ -93,7 +93,7 @@ $$
 
 ---
 
-## 🚀 Quickstart
+## Quickstart
 
 ### Installation
 ```bash
@@ -135,7 +135,7 @@ Standard implementations using `torch.where` evaluate both branches eagerly, cau
 
 ---
 
-## 📈 Empirical Trading Benchmarks
+## Empirical Trading Benchmarks
 
 ### Table I: Out-of-Sample Quantitative Benchmark (5,000 Ticks, 1.0 bps Turnover Fee)
 
@@ -166,7 +166,7 @@ Evaluated within Temporal 1D Convolutional Neural Networks (1D-CNN) across 5 ind
 
 ---
 
-## ⚡ High-Performance C++ and CUDA Kernels
+## High-Performance C++ and CUDA Kernels
 
 For sub-microsecond HFT order book engines and GPU acceleration, production kernels are available in `qalu/csrc/`:
 * `qalu.hpp`: Single-header C++20 implementation with OpenMP SIMD vectorization.
@@ -174,7 +174,7 @@ For sub-microsecond HFT order book engines and GPU acceleration, production kern
 
 ---
 
-## 📁 Repository Structure
+## Repository Structure
 
 ```text
 qalu-pytorch/
@@ -185,7 +185,7 @@ qalu-pytorch/
 │       ├── qalu.hpp         # C++20 header-only implementation
 │       └── qalu_cuda.cu     # CUDA FP32/FP16 forward and backward kernels
 ├── paper/
-│   ├── Q_ALU_Research_Paper.pdf  # Camera-ready IEEE 8-page publication PDF
+│   ├── Q_ALU_Research_Paper.pdf  # 8-page research paper PDF
 │   ├── Q_ALU_Research_Paper.md   # Markdown research manuscript
 │   ├── references.bib            # 22 peer-reviewed citations
 │   ├── figures/                  # Vector PDF and 300 DPI PNG figures
@@ -203,7 +203,7 @@ qalu-pytorch/
 
 ---
 
-## 📄 Citation
+## Citation
 
 If you use Q-ALU in your research, trading algorithms, or production systems, please cite the official SSRN publication:
 
@@ -224,7 +224,7 @@ Text citation:
 
 ---
 
-## 📜 License
+## License
 
 MIT License. Copyright (c) 2026 Faiq Hammam Mutaqin.
 
