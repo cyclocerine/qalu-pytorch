@@ -38,7 +38,15 @@ Traditional deep learning activation functions (such as **ReLU**, **GELU**, and 
 ### Formal Definition
 Let $x \in \mathbb{R}$ denote the pre-activation input. The Quant Asymmetric Leaky Unit (Q-ALU) is defined piecewise as:
 
-$$f(x) = \begin{cases} \alpha \cdot x \cdot \left( 1 + \tanh\left(\frac{x}{\beta}\right) \right), & \text{for } x \ge 0 \quad \text{(Bullish Momentum Riding)} \\ \gamma \cdot x \cdot \left( 1 - \exp\left(\frac{x}{\delta}\right) \right), & \text{for } x < 0 \quad \text{(Downside Risk & Drawdown Barrier)} \end{cases}$$
+$$
+f(x) = \begin{cases} 
+\alpha \cdot x \cdot \left( 1 + \tanh\left(\frac{x}{\beta}\right) \right), & \text{for } x \ge 0 \\ 
+\gamma \cdot x \cdot \left( 1 - \exp\left(\frac{x}{\delta}\right) \right), & \text{for } x < 0 
+\end{cases}
+$$
+
+* **Positive Domain ($x \ge 0$):** Bullish momentum riding regime accelerating toward terminal slope $2\alpha$.
+* **Negative Domain ($x < 0$):** Downside risk protection and quadratic drawdown barrier.
 
 Where $\alpha, \beta, \gamma, \delta > 0$:
 * **$\alpha$ (Bullish Momentum Scaler):** Dictates initial response gain to positive returns, accelerating toward terminal slope $2\alpha$.
@@ -46,17 +54,24 @@ Where $\alpha, \beta, \gamma, \delta > 0$:
 * **$\gamma$ (Risk / Panic Scaler):** Controls the asymptotic penalty gradient for severe negative drawdowns.
 * **$\delta$ (Micro-Noise Drawdown Threshold):** Establishes the quadratic noise-filtering deadband around zero.
 
-Using the floating-point identity $\operatorname{expm1}(u) = e^u - 1$, the negative branch is evaluated with full machine precision:
+Using the floating-point identity $\mathrm{expm1}(u) = e^u - 1$, the negative branch is evaluated with full machine precision:
 
-$$f(x) = -\gamma \cdot x \cdot \operatorname{expm1}\left(\frac{x}{\delta}\right), \quad \text{for } x < 0$$
+$$
+f(x) = -\gamma \cdot x \cdot \mathrm{expm1}\left(\frac{x}{\delta}\right), \quad \text{for } x < 0
+$$
 
 ### Key Mathematical Theorems
 1. **Origin Continuity ($C^0$):** $\lim_{x \to 0^+} f(x) = \lim_{x \to 0^-} f(x) = f(0) = 0$.
-2. **Global Monotonicity:** $f'(x) \ge 0, \, \forall x \in \mathbb{R}$, eliminating artificial local minima wells.
+2. **Global Monotonicity:** $f'(x) \ge 0 \quad (\forall x \in \mathbb{R})$, eliminating artificial local minima wells.
 3. **Dynamic Gradient Overshoot:** At the critical drawdown threshold $x = -2\delta$, the gradient spikes by **$+13.53\%$** above its asymptotic penalty ($f'(-2\delta) \approx 1.1353\gamma$). This natural early warning alarm triggers defensive cut-loss execution before tail risk escalates.
 4. **FastQALU Padé Rational Approximant:** For sub-microsecond FPGA and order book engines:
 
-$$f_{\text{fast}}(x) = \begin{cases} \alpha \cdot x \cdot \left( 1 + \frac{x/\beta}{\sqrt{1 + (x/\beta)^2}} \right), & \text{for } x \ge 0 \\ \gamma \cdot x \cdot \left( \frac{-x/\delta}{1 + 0.5 \left| \frac{x}{\delta} \right|} \right), & \text{for } x < 0 \end{cases}$$
+$$
+f_{\text{fast}}(x) = \begin{cases} 
+\alpha \cdot x \cdot \left( 1 + \frac{x/\beta}{\sqrt{1 + (x/\beta)^2}} \right), & \text{for } x \ge 0 \\ 
+\gamma \cdot x \cdot \left( \frac{-x/\delta}{1 + 0.5 \left| \frac{x}{\delta} \right|} \right), & \text{for } x < 0 
+\end{cases}
+$$
 
 ---
 
@@ -134,9 +149,9 @@ Standard implementations using `torch.where` evaluate both branches eagerly, cau
 
 ### Real-World Evaluation on BTC/USDT (2,834 15-Minute Bars)
 Evaluated within Temporal 1D Convolutional Neural Networks (1D-CNN) across 5 independent random seeds ($s \in \{42, 101, 777, 2026, 9999\}$):
-* **Q-ALU:** Return: **$14.86\% \pm 6.52\%$**, Profit Factor: **$1.42 \pm 0.18$**, MDD: **$7.81\% \pm 2.10\%$** ($p < 0.01$).
-* **ReLU Baseline:** Return: $2.63\% \pm 5.50\%$, Profit Factor: $1.15 \pm 0.22$, MDD: $23.56\% \pm 4.30\%$.
-* **GELU Baseline:** Return: $-6.65\% \pm 4.81\%$, Profit Factor: $0.88 \pm 0.19$, MDD: $22.05\% \pm 3.90\%$.
+* **Q-ALU:** Return: **14.86% $\pm$ 6.52%**, Profit Factor: **1.42 $\pm$ 0.18**, MDD: **7.81% $\pm$ 2.10%** ($p < 0.01$).
+* **ReLU Baseline:** Return: **2.63% $\pm$ 5.50%**, Profit Factor: **1.15 $\pm$ 0.22**, MDD: **23.56% $\pm$ 4.30%**.
+* **GELU Baseline:** Return: **-6.65% $\pm$ 4.81%**, Profit Factor: **0.88 $\pm$ 0.19**, MDD: **22.05% $\pm$ 3.90%**.
 
 ### Table II: Hardware Latency and Throughput (100,000 Elements)
 

@@ -1,0 +1,8 @@
+# GitHub Linguist configuration
+# Treat paper and LaTeX templates as documentation/vendored to accurately reflect Python/CUDA/C++ code
+paper/** linguist-documentation
+paper/latex/** linguist-documentation
+*.cls linguist-vendored
+*.bst linguist-vendored
+*.tex linguist-documentation
+*.bib linguist-documentation
