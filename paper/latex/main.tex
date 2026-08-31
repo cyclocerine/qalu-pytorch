@@ -238,9 +238,9 @@ This yields a \textbf{$+10.0\%$ momentum acceleration boost} above the terminal 
 \subsection{Extensions: FastQALU for Ultra Low Latency Execution}
 For ultra low latency FPGA engines and live order book execution where hardware transcendental units (\texttt{tanh}, \texttt{exp}) impose clock cycle latency, FastQALU utilizes algebraic Padé approximants:
 \begin{equation}
-f_{\mathrm{fast}}(x) = \begin{cases} 
+f_{\text{fast}}(x) = \begin{cases} 
 \alpha \cdot x \cdot \left( 1 + \frac{x/\beta}{\sqrt{1 + (x/\beta)^2}} \right), & \text{for } x \ge 0 \\ 
-\gamma \cdot x \cdot \left( \frac{-x/\delta}{1 + \vert{}x/\delta\vert{}} \right), & \text{for } x < 0 
+\gamma \cdot x \cdot \left( \frac{-x/\delta}{1 + |x/\delta|} \right), & \text{for } x < 0 
 \end{cases}
 \end{equation}
 This non-transcendental rational formulation completely eliminates exponential and hyperbolic evaluations while preserving the asymmetric dual regime behavior with guaranteed strictly positive denominator ($1 + |x/\delta| \ge 1$) and asymptotic consistency ($\lim_{x \to -\infty} f'_{\mathrm{fast}}(x) = \gamma$, matching the transcendental Q-ALU).
@@ -342,22 +342,22 @@ To avoid misleading high frequency annualization distortions (where tick level m
     \item \textbf{Total Position Turnover}: Number of trades executed.
 \end{itemize}
 
-TABLE~\ref{tab:oos_results} presents the comparative out of sample quantitative metrics across baseline activations.
+TABLE~\ref{tab:benchmark} presents the comparative out of sample quantitative metrics across baseline activations.
 
 \begin{table*}[t]
-\caption{Out of Sample Quantitative Trading Benchmark (5,000 Ticks, 1.0 bps Fee per Turnover)}
-\label{tab:oos_results}
 \centering
+\caption{OUT OF SAMPLE QUANTITATIVE TRADING BENCHMARK (5,000 TICKS, 1.0 BPS FEE PER TURNOVER)}
+\label{tab:benchmark}
 \begin{tabular}{lcccccc}
-\toprule
-Activation Function & \textbf{Return (\%)} & \textbf{Per-Step Sharpe} & \textbf{Per-Step Sortino} & \textbf{Profit Factor} & \textbf{Max Drawdown (\%)} & \textbf{Total Trades} \\
-\midrule
+\hline
+\textbf{Activation Function} & \textbf{Return (\%)} & \textbf{Per-Step Sharpe} & \textbf{Per-Step Sortino} & \textbf{Profit Factor} & \textbf{Max Drawdown (\%)} & \textbf{Total Trades} \\
+\hline
 Q-ALU & \textbf{+75.85\%} & \textbf{0.093} & \textbf{0.142} & \textbf{2.09} & \textbf{2.79\%} & 799 \\
-ReLU \cite{nair2010rectified} & +5.43\% & 0.032 & 0.041 & 3.83 & 0.95\% & 42 \\
-LeakyReLU \cite{maas2013rectifier} & +5.11\% & 0.030 & 0.039 & 3.11 & 0.95\% & 48 \\
-GELU \cite{hendrycks2016gelu} & +1.42\% & 0.023 & 0.031 & 36.39 & 0.01\% & 8 \\
-SiLU \cite{ramachandran2017swish} & 0.00\% & 0.000 & 0.000 & 0.00 & 0.00\% & 0 \\
-\bottomrule
+ReLU [5] & +5.43\% & 0.032 & 0.041 & 3.83 & 0.95\% & 42 \\
+LeakyReLU [6] & +5.11\% & 0.030 & 0.039 & 3.11 & 0.95\% & 48 \\
+GELU [7] & +1.42\% & 0.023 & 0.031 & 36.39 & 0.01\% & 8 \\
+SiLU [8] & 0.00\% & 0.000 & 0.000 & 0.00 & 0.00\% & 0 \\
+\hline
 \end{tabular}
 \end{table*}
 
@@ -416,7 +416,7 @@ For input $X \sim \mathcal{N}(0, 1)$ under default parameters $(\alpha=1.0, \bet
 \textbf{Initialization Recommendation:}
 When training deep networks ($>3$ layers) without normalization, weights should be initialized using a modified Kaiming Normal scaling:
 \begin{equation}
-W \sim \mathcal{N}\left(0, \frac{0.6097^2}{\mathrm{fan\_in}}\right)
+W \sim \mathcal{N}\left(0, \frac{0.6097^2}{\text{fan\_in}}\right)
 \end{equation}
 In modern architectures, pairing Q-ALU directly with \texttt{nn.LayerNorm} or \texttt{nn.RMSNorm} completely absorbs the mean shift and preserves unit variance across arbitrarily deep layers.
 
