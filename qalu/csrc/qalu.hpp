@@ -92,7 +92,7 @@ inline float forward_fast(float x, float alpha = 1.0f, float beta = 1.0f, float 
         return alpha * x * (t + t * t);
     } else {
         float u = x / delta;
-        return gamma * x * (-u / (1.0f - 0.5f * u));
+        return gamma * x * (-u / (1.0f - u));
     }
 }
 
