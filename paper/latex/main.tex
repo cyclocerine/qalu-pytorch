@@ -350,6 +350,7 @@ TABLE~\ref{tab:benchmark} presents the comparative out of sample quantitative me
 \centering
 \caption{OUT OF SAMPLE QUANTITATIVE TRADING BENCHMARK (5,000 TICKS, 1.0 BPS FEE PER TURNOVER)}
 \label{tab:benchmark}
+\resizebox{\textwidth}{!}{
 \begin{tabular}{lcccccc}
 \hline
 \textbf{Activation Function} & \textbf{Return (\%)} & \textbf{Per-Step Sharpe} & \textbf{Per-Step Sortino} & \textbf{Profit Factor} & \textbf{Max Drawdown (\%)} & \textbf{Total Trades} \\
@@ -361,6 +362,7 @@ GELU [7] & +1.42\% & 0.023 & 0.031 & 36.39 & 0.01\% & 8 \\
 SiLU [8] & 0.00\% & 0.000 & 0.000 & 0.00 & 0.00\% & 0 \\
 \hline
 \end{tabular}
+}
 \end{table*}
 
 \subsection{Real World Empirical Evaluation on BTC/USDT Market Data}
@@ -383,12 +385,12 @@ The results confirm that Q-ALU achieves statistically significant superiority ($
 \subsection{Hardware Latency and Computational Throughput}
 Benchmarked on an Intel Core processor across 100,000 FP32 elements over 100 iterations:
 
-\begin{table}[h]
+\begin{table}[htbp]
 \caption{Computational Throughput Benchmark (100,000 Elements)}
 \label{tab:throughput}
 \centering
-\setlength{\tabcolsep}{5pt}
-{\footnotesize
+\setlength{\tabcolsep}{3pt}
+\resizebox{\columnwidth}{!}{
 \begin{tabular}{lccc}
 \toprule
 \textbf{Activation} & \textbf{Forward (ms)} & \textbf{Backward (ms)} & \textbf{Throughput (M/s)} \\
