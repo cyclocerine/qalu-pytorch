@@ -47,7 +47,7 @@ Despite architectural innovations ranging from Temporal Convolutional Networks (
 \begin{itemize}
     \item \textbf{Rectified Linear Unit (ReLU)} \cite{nair2010rectified}: $f(x) = \max(0, x)$
     \item \textbf{Leaky ReLU} \cite{maas2013rectifier}: $f(x) = \max(\alpha x, x)$
-    \item \textbf{Gaussian Error Linear Unit (GELU)} \cite{hendrycks2016gelu}: $f(x) = x \cdot \Phi(x) = x \cdot P(X \le x)$
+    \item \textbf{Gaussian Error Linear Unit (GELU)} \cite{hendrycks2016gelu}: $f(x) = x \Phi(x) = x P(X \le x)$
     \item \textbf{Swish / SiLU} \cite{ramachandran2017swish, elfwing2018sigmoid}: $f(x) = x \cdot \sigma(\beta x)$
     \item \textbf{Mish} \cite{misra2020mish}: $f(x) = x \cdot \tanh(\ln(1 + e^x))$
 \end{itemize}
@@ -405,6 +405,7 @@ SiLU & 5.760 & 12.874 & 17.36 \\
 \end{tabular}
 }
 \end{table}
+\vspace{1em}
 
 FastQALU achieves a \textbf{$1.5\times$ speedup} over transcendental Q-ALU and matches or exceeds GELU throughput while providing an ultra fast backward execution of 0.308 ms (TABLE~\ref{tab:throughput}). 
 
