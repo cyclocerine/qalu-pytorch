@@ -45,9 +45,9 @@ Despite architectural innovations ranging from Temporal Convolutional Networks (
 \begin{itemize}
     \item \textbf{Rectified Linear Unit (ReLU)} \cite{nair2010rectified}: $f(x) = \max(0, x)$
     \item \textbf{Leaky ReLU} \cite{maas2013rectifier}: $f(x) = \max(\alpha x, x)$
-    \item \textbf{Gaussian Error Linear Unit (GELU)} \cite{hendrycks2016gelu}: $f(x) = x \cdot \Phi(x)$
+    \item \textbf{Gaussian Error Linear Unit (GELU)} \cite{hendrycks2016gelu}: $f(x) = x \cdot \Phi(x) = x \cdot P(X \le x)$
     \item \textbf{Swish / SiLU} \cite{ramachandran2017swish, elfwing2018sigmoid}: $f(x) = x \cdot \sigma(\beta x)$
-    \item \textbf{Mish} \cite{misra2020mish}: $f(x) = x \tanh(\ln(1 + e^x))$
+    \item \textbf{Mish} \cite{misra2020mish}: $f(x) = x \cdot \tanh(\ln(1 + e^x))$
 \end{itemize}
 
 While these functions excel in domains where positive and negative latent features carry symmetric semantic importance, they introduce severe structural pathologies when applied directly to quantitative financial modeling:
@@ -106,9 +106,9 @@ where $\alpha, \beta, \gamma, \delta > 0$ represent strictly positive hyperparam
     \item $\delta \in \mathbb{R}^+$: \textbf{Micro-Noise Drawdown Threshold}, establishing the width of the quadratic noise-filtering zone around zero.
 \end{itemize}
 
-Using the identity for negative exponents, since $x < 0 \implies x/\delta < 0$, the negative term can be equivalently written in terms of the standard floating-point function $\operatorname{expm1}(u) = e^u - 1$:
+Using the identity for negative exponents, since $x < 0 \implies x/\delta < 0$, the negative term can be equivalently written in terms of the standard floating-point function $\text{expm1}(u) = e^u - 1$:
 \begin{equation}
-f(x) = -\gamma \cdot x \cdot \operatorname{expm1}\left(\frac{x}{\delta}\right), \quad \text{for } x < 0
+f(x) = -\gamma \cdot x \cdot \text{expm1}\left(\frac{x}{\delta}\right), \quad \text{for } x < 0
 \end{equation}
 Fig.~\ref{fig:activation_curves} visualizes the overall curve against standard activations.
 
@@ -159,7 +159,7 @@ Evaluating the boundary limits:
     \begin{equation}
     \lim_{x \to 0^-} f'_-(x) = \gamma(1 - 1 - 0) = \mathbf{0}
     \end{equation}
-    \item As $x \to -\infty$: Since $x < 0$, let $x \to -\infty$. Then $\exp(x/\delta) \to 0$ and $\frac{x}{\delta}\exp(x/\delta) \to 0$. Thus:
+    \item As $x \to -\infty$: Since $x < 0$, let $x \to -\infty$. Then $\exp(x/\delta) \to 0$ and $\lim_{x \to -\infty} \frac{x}{\delta} e^{x/\delta} = 0$ (via L'H\^opital's rule). Thus:
     \begin{equation}
     \lim_{x \to -\infty} f'_-(x) = \gamma(1 - 0 - 0) = \mathbf{\gamma}
     \end{equation}
@@ -240,7 +240,7 @@ For ultra low latency FPGA engines and live order book execution where hardware 
 \begin{equation}
 f_{\mathrm{fast}}(x) = \begin{cases} 
 \alpha \cdot x \cdot \left( 1 + \frac{x/\beta}{\sqrt{1 + (x/\beta)^2}} \right), & \text{for } x \ge 0 \\ 
-\gamma \cdot x \cdot \left( \frac{-x/\delta}{1 + \left| \frac{x}{\delta} \right|} \right), & \text{for } x < 0 
+\gamma \cdot x \cdot \left( \frac{-x/\delta}{1 + \vert{}x/\delta\vert{}} \right), & \text{for } x < 0 
 \end{cases}
 \end{equation}
 This non-transcendental rational formulation completely eliminates exponential and hyperbolic evaluations while preserving the asymmetric dual regime behavior with guaranteed strictly positive denominator ($1 + |x/\delta| \ge 1$) and asymptotic consistency ($\lim_{x \to -\infty} f'_{\mathrm{fast}}(x) = \gamma$, matching the transcendental Q-ALU).
@@ -416,7 +416,7 @@ For input $X \sim \mathcal{N}(0, 1)$ under default parameters $(\alpha=1.0, \bet
 \textbf{Initialization Recommendation:}
 When training deep networks ($>3$ layers) without normalization, weights should be initialized using a modified Kaiming Normal scaling:
 \begin{equation}
-\mathbf{W} \sim \mathcal{N}\left(0, \frac{0.6097}{\sqrt{\mathrm{fan\_in}}}\right)
+\mathbf{W} \sim \mathcal{N}\left(0, \frac{0.6097^2}{\mathrm{fan\_in}}\right)
 \end{equation}
 In modern architectures, pairing Q-ALU directly with \texttt{nn.LayerNorm} or \texttt{nn.RMSNorm} completely absorbs the mean shift and preserves unit variance across arbitrarily deep layers.
 
