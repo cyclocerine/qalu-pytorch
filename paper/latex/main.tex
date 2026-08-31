@@ -421,9 +421,9 @@ For input $X \sim \mathcal{N}(0, 1)$ under default parameters $(\alpha=1.0, \bet
 \textbf{Initialization Recommendation:}
 When training deep networks ($>3$ layers) without normalization, weights should be initialized using a modified Kaiming Normal scaling:
 \begin{equation}
-W \sim \mathcal{N}\left(0, \frac{0.6097^2}{\text{fan\_in}}\right)
+W \sim \mathcal{N}\left(0, \sigma^2\right), \quad \text{where } \sigma = \frac{0.6097}{\sqrt{\text{fan\_in}}}
 \end{equation}
-In modern architectures, pairing Q-ALU directly with \texttt{nn.LayerNorm} or \texttt{nn.RMSNorm} completely absorbs the mean shift and preserves unit variance across arbitrarily deep layers.
+In modern deep architectures, pairing Q-ALU directly with standard normalization layers that enforce explicit mean-centering (such as \texttt{nn.LayerNorm}) completely absorbs the asymmetric mean drift ($\mathbb{E}[f(X)] \approx +0.1974$) while preserving unit variance across arbitrarily deep feedforward networks.
 
 \section{Conclusion and Future Work}
 This paper presented \textbf{Q-ALU (Quant Asymmetric Leaky Unit)}, a novel activation function custom designed to bridge the gap between deep reinforcement learning and the asymmetric realities of financial market microstructure. By unifying momentum-accelerated upside tracking with an exponential to linear downside barrier, Q-ALU embeds behavioral prospect theory and microstructure noise filtering directly into network calculus. 
