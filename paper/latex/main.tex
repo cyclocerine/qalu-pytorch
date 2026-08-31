@@ -350,13 +350,13 @@ TABLE~\ref{tab:oos_results} presents the comparative out of sample quantitative 
 \centering
 \begin{tabular}{lcccccc}
 \toprule
-\textbf{Activation Function} & \textbf{Return (\%)} & \textbf{Per-Step Sharpe} & \textbf{Per-Step Sortino} & \textbf{Profit Factor} & \textbf{Max Drawdown (\%)} & \textbf{Total Trades} \\
+Activation Function & \textbf{Return (\%)} & \textbf{Per-Step Sharpe} & \textbf{Per-Step Sortino} & \textbf{Profit Factor} & \textbf{Max Drawdown (\%)} & \textbf{Total Trades} \\
 \midrule
-\textbf{Q-ALU} & \textbf{+75.85\%} & \textbf{0.093} & \textbf{0.142} & \textbf{2.09} & \textbf{2.79\%} & \textbf{799} \\
-\textbf{ReLU} \cite{nair2010rectified} & +5.43\% & 0.032 & 0.041 & 3.83 & 0.95\% & 42 \\
-\textbf{LeakyReLU} \cite{maas2013rectifier} & +5.11\% & 0.030 & 0.039 & 3.11 & 0.95\% & 48 \\
-\textbf{GELU} \cite{hendrycks2016gelu} & +1.42\% & 0.023 & 0.031 & 36.39 & 0.01\% & 8 \\
-\textbf{SiLU} \cite{ramachandran2017swish} & 0.00\% & 0.000 & 0.000 & 0.00 & 0.00\% & 0 \\
+Q-ALU & \textbf{+75.85\%} & \textbf{0.093} & \textbf{0.142} & \textbf{2.09} & \textbf{2.79\%} & 799 \\
+ReLU \cite{nair2010rectified} & +5.43\% & 0.032 & 0.041 & 3.83 & 0.95\% & 42 \\
+LeakyReLU \cite{maas2013rectifier} & +5.11\% & 0.030 & 0.039 & 3.11 & 0.95\% & 48 \\
+GELU \cite{hendrycks2016gelu} & +1.42\% & 0.023 & 0.031 & 36.39 & 0.01\% & 8 \\
+SiLU \cite{ramachandran2017swish} & 0.00\% & 0.000 & 0.000 & 0.00 & 0.00\% & 0 \\
 \bottomrule
 \end{tabular}
 \end{table*}
@@ -416,7 +416,7 @@ For input $X \sim \mathcal{N}(0, 1)$ under default parameters $(\alpha=1.0, \bet
 \textbf{Initialization Recommendation:}
 When training deep networks ($>3$ layers) without normalization, weights should be initialized using a modified Kaiming Normal scaling:
 \begin{equation}
-\mathbf{W} \sim \mathcal{N}\left(0, \frac{0.6097^2}{\mathrm{fan\_in}}\right)
+W \sim \mathcal{N}\left(0, \frac{0.6097^2}{\mathrm{fan\_in}}\right)
 \end{equation}
 In modern architectures, pairing Q-ALU directly with \texttt{nn.LayerNorm} or \texttt{nn.RMSNorm} completely absorbs the mean shift and preserves unit variance across arbitrarily deep layers.
 
