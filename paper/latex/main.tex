@@ -242,7 +242,7 @@ For ultra low latency FPGA engines and live order book execution where hardware 
 \begin{equation}
 f_{\text{fast}}(x) = \begin{cases}
 \alpha \cdot x \cdot \left(1 + \frac{x/\beta}{\sqrt{1 + (x/\beta)^2}}\right), & \text{for } x \ge 0 \\
-\gamma \cdot x \cdot \left(\frac{-x/\delta}{1 + |x/\delta|}\right), & \text{for } x < 0
+\gamma \cdot x \cdot \left(\frac{u^2 + 2u}{u^2 + 3u + 2.5}\right), & \text{where } u = |x/\delta| \text{ for } x < 0
 \end{cases}
 \end{equation}
 This non-transcendental rational formulation completely eliminates exponential and hyperbolic evaluations while preserving the asymmetric dual regime behavior with guaranteed strictly positive denominator ($1 + |x/\delta| \ge 1$) and asymptotic consistency ($\lim_{x \to -\infty} f'_{\mathrm{fast}}(x) = \gamma$, matching the transcendental Q-ALU).

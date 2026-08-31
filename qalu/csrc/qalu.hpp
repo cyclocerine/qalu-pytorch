@@ -91,8 +91,11 @@ inline float forward_fast(float x, float alpha = 1.0f, float beta = 1.0f, float 
         float t = u / std::sqrt(1.0f + u * u);
         return alpha * x * (t + t * t);
     } else {
-        float u = x / delta;
-        return gamma * x * (-u / (1.0f - u));
+        float u = -x / delta;
+        float u2 = u * u;
+        float num = u2 + 2.0f * u;
+        float den = u2 + 3.0f * u + 2.5f;
+        return gamma * x * (num / den);
     }
 }
 

@@ -213,8 +213,11 @@ if HAS_TORCH:
             t_p = u_p * torch.rsqrt(1.0 + u_p * u_p)
             pos_term = self.alpha * x_pos * (1.0 + t_p)
             
-            u_n = x_neg / self.delta
-            neg_term = self.gamma * x_neg * (-u_n / (1.0 - u_n))
+            u_n = -x_neg / self.delta
+            u_n_sq = u_n * u_n
+            num = u_n_sq + 2.0 * u_n
+            den = u_n_sq + 3.0 * u_n + 2.5
+            neg_term = self.gamma * x_neg * (num / den)
             return torch.where(x >= 0.0, pos_term, neg_term)
 
     QALU_Adaptive = QALU_Ultra
