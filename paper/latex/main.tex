@@ -337,9 +337,9 @@ To evaluate Q-ALU under realistic high frequency market microstructure, we const
 To avoid misleading high frequency annualization distortions (where tick level multiplier $\sqrt{N_{\text{ticks}}}$ artificially inflates Sharpe ratios into hundreds), we evaluate models strictly on standard non-annualized quant metrics:
 \begin{itemize}
     \item \textbf{Out of Sample Return (\%)}: Cumulative equity growth over the test period.
-    \item \textbf{Per-Step Sharpe Ratio}: $\mu_{\text{step}} / \sigma_{\text{step}}$ (un-annualized).
-    \item \textbf{Per-Step Sortino Ratio}: $\mu_{\text{step}} / \sigma_{D,\text{step}}$ (un-annualized).
-    \item \textbf{Profit Factor}: $\sum \text{Gains} / \sum \text{Losses}$.
+    \item \textbf{Per-Step Sharpe Ratio:} $\mu_{\text{step}} / \sigma_{\text{step}}$ (un-annualized).
+    \item \textbf{Per-Step Sortino Ratio:} $\mu_{\text{step}} / \sigma_{D,\text{step}}$ (un-annualized).
+    \item \textbf{Profit Factor:} $\sum \text{Gains} / \sum |\text{Losses}|$.
     \item \textbf{Maximum Drawdown (MDD \%)}: Peak to trough decline.
     \item \textbf{Total Position Turnover}: Number of trades executed.
 \end{itemize}
