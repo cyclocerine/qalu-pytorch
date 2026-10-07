@@ -156,3 +156,70 @@ __global__ void qalu_ultra_forward_kernel_fp32(
         }
     }
 }
+
+// =========================================================================
+// FORWARD KERNEL: FastQALU Rational Approximation (FP32)
+// =========================================================================
+__global__ void fast_qalu_forward_kernel_fp32(
+    const float* __restrict__ input,
+    float* __restrict__ output,
+    int size,
+    float alpha,
+    float beta,
+    float gamma,
+    float delta)
+{
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx < size) {
+        float x = input[idx];
+        if (x >= 0.0f) {
+            float u = x / beta;
+            float t = u * rsqrtf(1.0f + u * u);
+            output[idx] = alpha * x * (1.0f + t);
+        } else {
+            float u = -x / delta;
+            float u2 = u * u;
+            float num = u2 + 2.0f * u;
+            float den = u2 + 3.0f * u + 2.5f;
+            output[idx] = gamma * x * (num / den);
+        }
+    }
+}
+
+// =========================================================================
+// BACKWARD KERNEL: FastQALU Rational Approximation (FP32)
+// =========================================================================
+__global__ void fast_qalu_backward_kernel_fp32(
+    const float* __restrict__ grad_output,
+    const float* __restrict__ input,
+    float* __restrict__ grad_input,
+    int size,
+    float alpha,
+    float beta,
+    float gamma,
+    float delta)
+{
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx < size) {
+        float x = input[idx];
+        float dy = grad_output[idx];
+        float dx = 0.0f;
+
+        if (x >= 0.0f) {
+            float u = x / beta;
+            float inv_s = rsqrtf(1.0f + u * u);
+            float t = u * inv_s;
+            float dt_du = inv_s * inv_s * inv_s;
+            dx = alpha * (1.0f + t + u * dt_du);
+        } else {
+            float u = -x / delta;
+            float num = u * u * u + 2.0f * u * u;
+            float den = u * u + 3.0f * u + 2.5f;
+            float dnum = 3.0f * u * u + 4.0f * u;
+            float dden = 2.0f * u + 3.0f;
+            float d_ratio = (dnum * den - num * dden) / (den * den);
+            dx = gamma * d_ratio;
+        }
+        grad_input[idx] = dy * dx;
+    }
+}

@@ -70,7 +70,7 @@ $$
 $$
 f_{\text{fast}}(x) = \begin{cases} 
 \alpha \cdot x \cdot \left( 1 + \frac{x/\beta}{\sqrt{1 + (x/\beta)^2}} \right), & \text{for } x \ge 0 \\ 
-\gamma \cdot x \cdot \left( \frac{-x/\delta}{1 + \left| \frac{x}{\delta} \right|} \right), & \text{for } x < 0 
+\gamma \cdot x \cdot \left( \frac{u^2 + 2u}{u^2 + 3u + 2.5} \right), & \text{for } x < 0 \quad (u = |x/\delta|)
 \end{cases}
 $$
 

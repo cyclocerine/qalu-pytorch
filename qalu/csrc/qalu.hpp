@@ -85,17 +85,39 @@ inline float forward_ultra(float x, float vol_ratio, float fee_threshold = 0.01f
 }
 
 // FastQALU (Non-transcendental Algebraic Rational Approximation)
-inline float forward_fast(float x, float alpha = 1.0f, float beta = 1.0f, float gamma = 2.5f, float delta = 0.5f) {
+inline float forward_fast(float x, float alpha = 1.0f, float beta = 1.0f, float gamma = 1.5f, float delta = 0.5f) {
     if (x >= 0.0f) {
         float u = x / beta;
         float t = u / std::sqrt(1.0f + u * u);
-        return alpha * x * (t + t * t);
+        return alpha * x * (1.0f + t);
     } else {
         float u = -x / delta;
         float u2 = u * u;
         float num = u2 + 2.0f * u;
         float den = u2 + 3.0f * u + 2.5f;
         return gamma * x * (num / den);
+    }
+}
+
+// FastQALU Canonical Backward (dL/dx)
+inline float backward_fast(float x, float alpha = 1.0f, float beta = 1.0f, float gamma = 1.5f, float delta = 0.5f) {
+    if (x >= 0.0f) {
+        float u = x / beta;
+        float inv_s = 1.0f / std::sqrt(1.0f + u * u);
+        float t = u * inv_s;
+        float dt_du = inv_s * inv_s * inv_s; // 1 / (1 + u^2)^(3/2)
+        return alpha * (1.0f + t + u * dt_du);
+    } else {
+        // u = -x / delta => x = -delta * u, dx/du = -delta
+        // f(x) = -gamma * delta * (u^3 + 2u^2) / (u^2 + 3u + 2.5)
+        // df/dx = (-1/delta) * df/du = gamma * d/du [(u^3 + 2u^2) / (u^2 + 3u + 2.5)]
+        float u = -x / delta;
+        float num = u * u * u + 2.0f * u * u;
+        float den = u * u + 3.0f * u + 2.5f;
+        float dnum = 3.0f * u * u + 4.0f * u;
+        float dden = 2.0f * u + 3.0f;
+        float d_ratio = (dnum * den - num * dden) / (den * den);
+        return gamma * d_ratio;
     }
 }
 

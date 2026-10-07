@@ -267,7 +267,10 @@ where $\sigma_D = \sqrt{\frac{1}{T} \sum_{t=1}^T \min(0, R_t - R_f)^2}$ is the d
 
 When an agent policy is parameterized by weights $\theta$, the gradient of the Sortino ratio with respect to network activations is:
 \begin{equation}
-\nabla_{\theta}\text{Sortino} \propto \sum_{t}\left[\frac{\nabla_{\theta}R_t}{\sigma_D} - \frac{\mathbb{E}[R]-R_f}{\sigma_D^3}\min(0, R_t)\nabla_{\theta}R_t\right]
+\begin{split}
+\nabla_{\theta}\text{Sortino} \propto \sum_{t}\bigg[ &\frac{\nabla_{\theta}R_t}{\sigma_D} \\
+&- \frac{\mathbb{E}[R]-R_f}{\sigma_D^3}\min(0, R_t - R_f)\nabla_{\theta}R_t\bigg]
+\end{split}
 \end{equation}
 
 Under standard symmetric activations (such as GELU or LeakyReLU), negative activations transmit linear or sub-linear errors. Q-ALU explicitly aligns with the Sortino denominator $\sigma_D$:
@@ -357,10 +360,10 @@ TABLE~\ref{tab:benchmark} presents the comparative out of sample quantitative me
 \textbf{Activation Function} & \textbf{Return (\%)} & \textbf{Per-Step Sharpe} & \textbf{Per-Step Sortino} & \textbf{Profit Factor} & \textbf{Max Drawdown (\%)} & \textbf{Total Trades} \\
 \hline
 Q-ALU & \textbf{+75.85\%} & \textbf{0.093} & \textbf{0.142} & \textbf{2.09} & \textbf{2.79\%} & 799 \\
-ReLU [5] & +5.43\% & 0.032 & 0.041 & 3.83 & 0.95\% & 42 \\
-LeakyReLU [6] & +5.11\% & 0.030 & 0.039 & 3.11 & 0.95\% & 48 \\
-GELU [7] & +1.42\% & 0.023 & 0.031 & 36.39 & 0.01\% & 8 \\
-SiLU [8] & 0.00\% & 0.000 & 0.000 & 0.00 & 0.00\% & 0 \\
+ReLU \cite{nair2010rectified} & +5.43\% & 0.032 & 0.041 & 3.83 & 0.95\% & 42 \\
+LeakyReLU \cite{maas2013rectifier} & +5.11\% & 0.030 & 0.039 & 3.11 & 0.95\% & 48 \\
+GELU \cite{hendrycks2016gelu} & +1.42\% & 0.023 & 0.031 & 36.39 & 0.01\% & 8 \\
+SiLU \cite{ramachandran2017swish} & 0.00\% & 0.000 & 0.000 & 0.00 & 0.00\% & 0 \\
 \hline
 \end{tabular}
 }
@@ -436,6 +439,8 @@ This paper presented \textbf{Q-ALU (Quant Asymmetric Leaky Unit)}, a novel activ
 Theoretical analysis proved global monotonicity ($f'(x) \ge 0, \, \forall x \in \mathbb{R}$) and identified the $+13.53\%$ \textit{Dynamic Gradient Overshoot} at $x = -2\delta$. Empirical evaluations across multi regime simulations and 2,834 real world BTC/USDT bars confirmed that Q-ALU delivers dramatic improvements in cumulative returns (+75.85\%), Profit Factor (2.09), and fee resistance under real transaction costs. Future work will investigate the deployment of Q-ALU within deeper architectures (such as 8-layer Temporal Convolutional Networks and multi-asset cross-attention Financial Transformers) to empirically evaluate internal covariate shift dynamics. Additionally, comprehensive stress testing on traditional high-liquidity assets, including Forex (EUR/USD) and the S\&P 500 E-mini futures, will be conducted to further validate global market generalization.
 
 \bibliographystyle{IEEEtran}
+{\footnotesize
 \bibliography{references}
+}
 
 \end{document}

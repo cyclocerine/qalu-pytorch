@@ -249,6 +249,24 @@ else:
         def __call__(self, x):
             return self.forward(x)
 
+    class FastQALU:
+        def __init__(self, alpha=1.0, beta=1.0, gamma=1.5, delta=0.5):
+            self.alpha, self.beta, self.gamma, self.delta = float(alpha), float(beta), float(gamma), float(delta)
+        def forward(self, x):
+            x = np.asarray(x, dtype=np.float64)
+            x_pos = np.maximum(x, 0.0)
+            x_neg = np.minimum(x, 0.0)
+            u_p = x_pos / self.beta
+            t_p = u_p / np.sqrt(1.0 + u_p * u_p)
+            pos = self.alpha * x_pos * (1.0 + t_p)
+            u_n = -x_neg / self.delta
+            u_n_sq = u_n * u_n
+            num = u_n_sq + 2.0 * u_n
+            den = u_n_sq + 3.0 * u_n + 2.5
+            neg = self.gamma * x_neg * (num / den)
+            return np.where(x >= 0.0, pos, neg)
+        def __call__(self, x):
+            return self.forward(x)
+
     QALU_Ultra = QALU2
     QALU_Adaptive = QALU_Ultra
-    FastQALU = QALU

@@ -10,7 +10,7 @@ import os
 import numpy as np
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from qalu import QALU, FastQALU
+from qalu import QALU, FastQALU, QALU2
 
 def test_origin_continuity():
     act = QALU()
@@ -65,6 +65,31 @@ def test_gradient_overshoot_peak():
     assert abs(grad_num - expected_peak) < 1e-3, f"Expected {expected_peak}, got {grad_num}"
     print(f"test_gradient_overshoot_peak PASSED (Peak: {grad_num:.4f} vs Asymptote: {gamma})")
 
+def test_qalu2_c1_continuity():
+    act = QALU2(alpha=1.0, beta=1.0, risk_premium=0.25, delta=0.5)
+    eps = 1e-6
+    d_pos = (act.forward(np.array([eps]))[0] - act.forward(np.array([0.0]))[0]) / eps
+    d_neg = (act.forward(np.array([0.0]))[0] - act.forward(np.array([-eps]))[0]) / eps
+    assert abs(d_pos) < 1e-4, f"Expected d_pos -> 0, got {d_pos}"
+    assert abs(d_neg) < 1e-4, f"Expected d_neg -> 0, got {d_neg}"
+    print("test_qalu2_c1_continuity PASSED")
+
+def test_torch_autograd():
+    try:
+        import torch
+    except ImportError:
+        print("test_torch_autograd SKIPPED (PyTorch not installed)")
+        return
+    act = QALU()
+    x = torch.tensor([-2.0, -1.0, 0.0, 1.0, 2.0], requires_grad=True)
+    y = act(x)
+    assert not torch.isnan(y).any()
+    loss = y.sum()
+    loss.backward()
+    assert x.grad is not None
+    assert not torch.isnan(x.grad).any()
+    print("test_torch_autograd PASSED")
+
 if __name__ == '__main__':
     test_origin_continuity()
     test_positive_momentum()
@@ -72,4 +97,6 @@ if __name__ == '__main__':
     test_global_monotonicity()
     test_fastqalu_equivalence()
     test_gradient_overshoot_peak()
+    test_qalu2_c1_continuity()
+    test_torch_autograd()
     print("\nALL UNIT TESTS PASSED SUCCESSFULLY!")

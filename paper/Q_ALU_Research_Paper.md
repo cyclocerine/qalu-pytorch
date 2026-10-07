@@ -175,7 +175,7 @@ A detailed second derivative analysis reveals a remarkable mathematical phenomen
 
 For ultra low latency FPGA engines and live order book execution where hardware transcendental units (`tanh`, `exp`) impose clock cycle latency, FastQALU utilizes algebraic Padé approximants:
 
-$$f_{\text{fast}}(x) = \begin{cases} \alpha \cdot x \cdot \left(1 + \frac{x/\beta}{\sqrt{1 + (x/\beta)^2}}\right), & \text{for } x \ge 0 \\ \gamma \cdot x \cdot \left(\frac{-x/\delta}{1 + 0.5\left\vert{}\frac{x}{\delta}\right\vert{}}\right), & \text{for } x < 0 \end{cases}$$
+$$f_{\text{fast}}(x) = \begin{cases} \alpha \cdot x \cdot \left(1 + \frac{x/\beta}{\sqrt{1 + (x/\beta)^2}}\right), & \text{for } x \ge 0 \\ \gamma \cdot x \cdot \left(\frac{u^2 + 2u}{u^2 + 3u + 2.5}\right), & \text{for } x < 0 \quad (u = |x/\delta|) \end{cases}$$
 
 This non-transcendental rational formulation completely eliminates exponential and hyperbolic evaluations while preserving the asymmetric dual regime behavior.
 
@@ -200,7 +200,7 @@ $$\text{Sortino} = \frac{\mathbb{E}[R] - R_f}{\sigma_D}, \quad \text{where } \si
 
 When an agent policy is parameterized by weights $\mathbf{\theta}$, the gradient of the Sortino ratio with respect to network activations is:
 
-$$\nabla_{\mathbf{\theta}} \text{Sortino} \propto \sum_{t} \left[ \frac{\nabla_{\mathbf{\theta}} R_t}{\sigma_D} - \frac{\mathbb{E}[R] - R_f}{\sigma_D^3} \min(0, R_t) \nabla_{\mathbf{\theta}} R_t \right]$$
+$$\nabla_{\mathbf{\theta}} \text{Sortino} \propto \sum_{t} \left[ \frac{\nabla_{\mathbf{\theta}} R_t}{\sigma_D} - \frac{\mathbb{E}[R] - R_f}{\sigma_D^3} \min(0, R_t - R_f) \nabla_{\mathbf{\theta}} R_t \right]$$
 
 Under standard symmetric activations (such as GELU or LeakyReLU), negative activations transmit linear or sub-linear errors. Q-ALU explicitly aligns with the Sortino denominator $\sigma_D$:
 1. For small losses $x \in [-\delta, 0]$, $f'(x) \approx 0$, preventing micro-noise from inflating perceived downside volatility.
