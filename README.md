@@ -64,15 +64,17 @@ $$
 ### Key Mathematical Theorems
 1. **Origin Continuity ($C^0$):** $\lim_{x \to 0^+} f(x) = \lim_{x \to 0^-} f(x) = f(0) = 0$.
 2. **Global Monotonicity:** $f'(x) \ge 0 \quad (\forall x \in \mathbb{R})$, eliminating artificial local minima wells.
-3. **Dynamic Gradient Overshoot:** At the critical drawdown threshold $x = -2\delta$, the gradient spikes by **$+13.53\%$** above its asymptotic penalty ($f'(-2\delta) \approx 1.1353\gamma$). This natural early warning alarm triggers defensive cut-loss execution before tail risk escalates.
-4. **FastQALU Padé Rational Approximant:** For sub-microsecond FPGA and order book engines:
+3. **Dynamic Gradient Overshoot:** The downside gradient is monotone and bounded: it rises through the quadratic band, reaches the full linear penalty $\gamma$ at $x = -\delta$, peaks at $f'(-2\delta) \approx 1.1353\gamma$ (**$+13.53\%$** above the asymptote) and then relaxes back toward $\gamma$ as the loss deepens. The amplification is a localized window around $-2\delta$, not an unbounded spike, so severe losses get a 13.5% stronger error signal than a pure linear cut-loss without risking exploding gradients.
+4. **FastQALU Rational Approximant:** For FPGA and order book engines without transcendental units:
 
 $$
 f_{\text{fast}}(x) = \begin{cases} 
-\alpha \cdot x \cdot \left( 1 + \frac{x/\beta}{\sqrt{1 + (x/\beta)^2}} \right), & \text{for } x \ge 0 \\ 
-\gamma \cdot x \cdot \left( \frac{u^2 + 2u}{u^2 + 3u + 2.5} \right), & \text{for } x < 0 \quad (u = |x/\delta|)
+\alpha \cdot x \cdot \left( 1 + \frac{u}{\sqrt{1 + u^2}} \right), & \text{for } x \ge 0,\; u = x/\beta \\ 
+\gamma \cdot x \cdot \frac{N(u)}{1 + N(u)}, & \text{for } x < 0,\; u = -x/\delta
 \end{cases}
 $$
+
+with $N(u) = u\left(1 + u\left(0.55 + u\left(0.05 + 0.10u\right)\right)\right)$, a $[4/4]$ Padé-type approximant of $1 - e^{-u}$ that satisfies $N(0)=0$, $N'(0)=1$ and $1 + N(u) \ge 1$. Maximum relative error is **0.53% in value** and **0.74% in gradient** on $u \in [0, 20]$; the downside overshoot is preserved at **$+13.12\%$** (exact: $+13.53\%$).
 
 ---
 
@@ -145,38 +147,45 @@ Standard implementations using `torch.where` evaluate both branches eagerly, cau
 
 ## Empirical Trading Benchmarks
 
-### Table I: Out-of-Sample Quantitative Benchmark (5,000 Ticks, 1.0 bps Turnover Fee)
+> **Status: negative result, reported as measured.** The benchmark below is fully reproducible (`experiments/trading_benchmark.py --epochs 300 --json results/trading_benchmark.json --plot ...`), uses five paired seeds and identical initial weights per activation. It **does not** support the claim that Q-ALU outperforms standard activations. The figures circulated in an earlier revision (+75.85% versus +5.43% for ReLU, baselines collapsing to 0–8 trades, a 2,834-bar BTC/USDT study and a 1D-CNN/LSTM study) could not be reproduced from this repository and are withdrawn; see §"Reproducibility Note" in the paper.
+
+### Table I: Out-of-Sample Quantitative Benchmark (5,000 Ticks, 1.0 bps Turnover Fee, 5 Paired Seeds, Mean ± Std)
 
 | Activation Function | Out-of-Sample Return (%) | Per-Step Sharpe | Per-Step Sortino | Profit Factor | Max Drawdown (%) | Total Trades |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
-| **Q-ALU** | **+75.85%** | **0.093** | **0.142** | **2.09** | **2.79%** | **799** |
-| **ReLU** | +5.43% | 0.032 | 0.041 | 3.83 | 0.95% | 42 |
-| **LeakyReLU** | +5.11% | 0.030 | 0.039 | 3.11 | 0.95% | 48 |
-| **GELU** | +1.42% | 0.023 | 0.031 | 36.39 | 0.01% | 8 |
-| **SiLU (Swish)** | 0.00% | 0.000 | 0.000 | 0.00 | 0.00% | 0 |
+| **Q-ALU** | +373.51 ± 27.39 | +0.489 ± 0.030 | +1.083 ± 0.129 | 4.37 ± 0.46 | 6.02 ± 1.33 | 718.2 ± 23.4 |
+| **ReLU** | +378.81 ± 40.32 | +0.498 ± 0.054 | +1.099 ± 0.232 | 4.56 ± 0.84 | 4.91 ± 1.47 | 761.2 ± 39.9 |
+| **LeakyReLU** | +383.70 ± 42.02 | +0.506 ± 0.057 | +1.140 ± 0.250 | 4.69 ± 0.86 | 4.48 ± 1.65 | 756.4 ± 46.1 |
+| **GELU** | +393.58 ± 16.23 | +0.521 ± 0.014 | +1.182 ± 0.098 | 4.86 ± 0.25 | 4.81 ± 1.70 | 737.2 ± 88.7 |
+| **SiLU (Swish)** | **+396.08 ± 20.61** | **+0.525 ± 0.025** | **+1.201 ± 0.086** | **4.94 ± 0.41** | **4.47 ± 1.46** | 733.2 ± 96.8 |
 
-### Real-World Evaluation on BTC/USDT (2,834 15-Minute Bars)
-Evaluated within Temporal 1D Convolutional Neural Networks (1D-CNN) across 5 independent random seeds ($s \in \{42, 101, 777, 2026, 9999\}$):
-* **Q-ALU:** Return: **14.86% $\pm$ 6.52%**, Profit Factor: **1.42 $\pm$ 0.18**, MDD: **7.81% $\pm$ 2.10%** ($p < 0.01$).
-* **ReLU Baseline:** Return: **2.63% $\pm$ 5.50%**, Profit Factor: **1.15 $\pm$ 0.22**, MDD: **23.56% $\pm$ 4.30%**.
-* **GELU Baseline:** Return: **-6.65% $\pm$ 4.81%**, Profit Factor: **0.88 $\pm$ 0.19**, MDD: **22.05% $\pm$ 3.90%**.
+What the numbers say, with paired differences over identical seeds and initial weights ($n = 5$, two-sided 5% critical value $2.78$):
 
-### Table II: Hardware Latency and Throughput (100,000 Elements)
+* **No turnover collapse for any activation.** Individual runs trade 574–819 times out of 5,000; the means span 718–761, and the lowest mean is Q-ALU's.
+* **Q-ALU trails on return and risk-adjusted return.** −20.1 pp of return versus GELU ($t = -3.65$) and −22.6 pp versus SiLU ($t = -4.51$); Sortino −0.099 ($t = -2.20$) and −0.118 ($t = -3.55$). Against ReLU and LeakyReLU the return gap is not significant ($t = -0.58$ and $-0.87$).
+* **The one consistent Q-ALU effect is lower turnover, with deeper drawdowns.** 43 fewer trades than ReLU ($t = -3.59$), but the highest maximum drawdown of the five (6.02% versus 4.47% for SiLU; paired $+1.55$ pp, $t = +2.42$).
+* **Reproduce it yourself:** `experiments/trading_benchmark.py --epochs 300 --json results/trading_benchmark.json --plot paper/latex/figures/fig5_equity_curves.pdf` writes both the JSON behind this table and the equity-curve figure.
+
+### Table II: Hardware Latency and Throughput (100,000 FP32 Elements, Single Thread, Best of 3)
 
 | Activation | Forward (ms) | Backward (ms) | Throughput (Million/s) |
 | :--- | :---: | :---: | :---: |
-| **ReLU** | 0.747 | 0.804 | 133.92 |
-| **LeakyReLU** | 1.646 | 5.088 | 60.74 |
-| **FastQALU** | **27.181** | **0.308** | **3.68** |
-| **Q-ALU** | 40.947 | 57.823 | 2.44 |
-| **GELU** | 44.686 | 48.535 | 2.24 |
-| **SiLU** | 5.760 | 12.874 | 17.36 |
+| **ReLU** | 0.334 | 2.547 | 299.29 |
+| **LeakyReLU** | 1.696 | 2.661 | 58.98 |
+| **SiLU** | 3.375 | 4.415 | 29.63 |
+| **GELU** | 2.678 | 4.234 | 37.34 |
+| **FastQALU** | **10.384** | **22.600** | **9.63** |
+| **Q-ALU 2.0** | 15.764 | 20.413 | 6.34 |
+| **Q-ALU Ultra** | 16.427 | 14.807 | 6.09 |
+| **Q-ALU** | 17.064 | 17.881 | 5.86 |
+
+FastQALU is 1.64× faster than transcendental Q-ALU in the forward pass and 1.27× faster end-to-end, but GELU is 3.9× faster still: the algebraic surrogate pays off where transcendental units are unavailable or the kernel is fused, not as a general throughput win.
 
 ---
 
 ## High-Performance C++ and CUDA Kernels
 
-For sub-microsecond HFT order book engines and GPU acceleration, production kernels are available in `qalu/csrc/`:
+For latency-sensitive deployment (no transcendental units in the target datapath, or a fused kernel), production kernels are available in `qalu/csrc/`:
 * `qalu.hpp`: Single-header C++20 implementation with OpenMP SIMD vectorization.
 * `qalu_cuda.cu`: NVIDIA Tensor Core optimized CUDA kernels supporting FP32, FP16, and BF16 execution.
 

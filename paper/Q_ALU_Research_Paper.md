@@ -12,7 +12,9 @@
 ### Abstract
 Deep neural networks applied to high frequency trading (HFT) and algorithmic portfolio management frequently suffer from structural inductive mismatch. Prevailing activation functions, including the Rectified Linear Unit (ReLU), Gaussian Error Linear Unit (GELU), and Swish/SiLU, were fundamentally designed for computer vision and natural language processing under the implicit assumption of isotropic, symmetric feature representations. Financial price discovery, however, is inherently asymmetric: downside liquidations and panic cascades occur with substantially greater velocity and severity than bullish accumulation phases, as formalized by Kahneman and Tversky prospect theory. Furthermore, intermediate hidden representations in trading models are severely corrupted by microstructure noise (for example bid ask bounce), leading to rampant overtrading and catastrophic policy collapse in reinforcement learning algorithms such as Proximal Policy Optimization (PPO). 
 
-To resolve these challenges, this paper introduces the **Quant Asymmetric Leaky Unit (Q-ALU)**, a novel activation function custom engineered for financial time series modeling and deep reinforcement learning. Q-ALU couples a dynamic hyperbolic tangent momentum riding regime on the positive domain with an exponential to linear downside barrier on the negative domain. We mathematically prove that Q-ALU is globally monotonic ($f'(x) \ge 0 \quad \forall x \in \mathbb{R}$), possesses a $C^0$ continuous origin, and exhibits a novel *Dynamic Gradient Overshoot*, delivering a $+13.53\%$ sensitivity spike at the critical drawdown threshold $x = -2\delta$ before relaxing into linear cut loss tracking. In empirical out of sample evaluations across 10,000 tick steps under realistic transaction costs (1.0 to 1.5 bps fee per turnover), neural trading policies equipped with Q-ALU achieve an out of sample return of **+75.85%** with a Profit Factor of **2.09** and a Maximum Drawdown (MDD) of **2.79%**, vastly outperforming baseline architectures utilizing ReLU (+5.43% return, 0.95% MDD) and GELU (+1.42% return, 0.01% MDD). Furthermore, when evaluated across 2,834 real world high frequency market bars of BTC/USDT and implemented within Temporal 1D Convolutional Neural Networks across 5 random seeds, Q-ALU demonstrates consistent alpha generation and superior fee resistance. Finally, we provide numerically stable, production grade PyTorch modules and hardware optimized CUDA C++ kernels achieving up to 133 million evaluations per second.
+To address this, this paper introduces the **Quant Asymmetric Leaky Unit (Q-ALU)**, an activation function engineered for financial time series modeling and deep reinforcement learning. Q-ALU couples a dynamic hyperbolic tangent momentum riding regime on the positive domain with an exponential to linear downside barrier on the negative domain. We prove that Q-ALU is globally monotonic ($f'(x) \ge 0 \ \forall x \in \mathbb{R}$), is $C^0$ at the origin, and exhibits a *Dynamic Gradient Overshoot*: the derivative peaks at $1.1353\gamma$ exactly at the drawdown threshold $x = -2\delta$ ($+13.53\%$) before relaxing toward the linear cut-loss asymptote. We give numerically stable PyTorch, C++ and CUDA implementations that avoid the $0 \times \infty$ autograd hazard and the catastrophic cancellation of the naive exponential form, plus an algebraic FastQALU surrogate that is 1.64× faster than the transcendental version in the forward pass.
+
+We then test the trading hypothesis rather than assume it. A reproducible multi-regime benchmark (10,000 ticks, 1.0 bps fee per turnover, five paired seeds, 300 epochs) does **not** support the claim that Q-ALU outperforms standard activations: Q-ALU is statistically indistinguishable from ReLU on mean return and trails GELU and SiLU by 20–23 percentage points (paired $t = -3.65$ and $-4.51$), no activation shows the predicted turnover collapse, and Q-ALU's only consistent effect is roughly 6% lower turnover with the deepest maximum drawdown of the five (6.02% versus 4.47%). We report these negative results explicitly, withdraw the trading figures of an earlier draft as non-reproducible, and position Q-ALU's contribution as its mathematical design, numerical robustness and implementation, not as a superior trading activation.
 
 **Keywords:** *Activation Functions, Deep Reinforcement Learning, Proximal Policy Optimization (PPO), High Frequency Trading (HFT), Downside Risk, Sortino Ratio, Prospect Theory, Financial Engineering.*
 
@@ -39,9 +41,9 @@ While these functions excel in domains where positive and negative latent featur
 To directly resolve these foundational issues, this paper introduces the **Quant Asymmetric Leaky Unit (Q-ALU)**. The primary contributions are summarized as follows:
 * **Domain-Specific Piecewise Formulation:** We formulate Q-ALU as a dedicated dual regime activation function that couples hyperbolic tangent acceleration ($\alpha \to 2\alpha$) for momentum riding on positive inputs with an exponential to linear barrier for aggressive risk penalization on negative inputs.
 * **Theoretical Calculus and Monotonicity Proof:** We prove that Q-ALU satisfies global monotonicity ($f'(x) \ge 0, \, \forall x \in \mathbb{R}$), eliminating artificial local minima wells. We derive the exact calculus of the origin and uncover the *Dynamic Gradient Overshoot* phenomenon, where the function exhibits a localized $+13.53\%$ sensitivity spike at $x = -2\delta$.
-* **Downside Risk and Drawdown Protection Analysis:** We provide a rigorous financial analysis of the downside risk dynamics of Q-ALU, proving how quadratic damping around $0^-$ dampens bid ask bounce while the linear asymptotic tail maximizes the empirical Sortino Ratio and Profit Factor.
-* **Comprehensive Multi Regime and Real Data Backtesting:** Across multi regime synthetic simulations and 2,834 real world high frequency market bars of BTC/USDT with realistic transaction costs (1.0 bps fee per turnover), we demonstrate that Q-ALU achieves superior out of sample performance across both Multi-Layer Perceptrons (MLP) and Temporal 1D Convolutional Neural Networks (1D-CNN) over 5 random seeds.
-* **Open Source Production Implementation:** We provide a fully verified PyTorch package (`qalu-pytorch`), numerical solutions preventing FP32 Autograd `NaN` errors, and high performance C++20/CUDA kernels for sub-microsecond HFT latency.
+* **Downside Risk Analysis:** We analyse the downside dynamics of Q-ALU in closed form: quadratic damping around $0^-$ attenuates bid-ask bounce, and the derivative saturates at the linear cut-loss asymptote $\gamma$. The analysis predicts lower turnover and better downside capture; the benchmark of Section VI finds the lower turnover but not the improved Sortino ratio or profit factor, and we report both.
+* **A Reproducible Benchmark, Reported Honestly:** We replace the non-reproducible backtests of the earlier draft (2,834 BTC/USDT bars, a 1D-CNN/LSTM study, and the +75.85% versus +5.43% comparison) with a runnable multi-regime benchmark over five paired seeds. Its result contradicts our own hypothesis: Q-ALU is competitive with, but not superior to, standard activations, and we report that as measured rather than re-tuning it.
+* **Open Source Production Implementation:** We provide a PyTorch package (`qalu-pytorch`), numerical solutions preventing FP32 Autograd `NaN` errors, and C++20/CUDA kernels whose arithmetic path contains no transcendental units, together with the CPU throughput measurements of Table II.
 
 ---
 
@@ -173,11 +175,19 @@ A detailed second derivative analysis reveals a remarkable mathematical phenomen
 
 ### F. Extensions: FastQALU for Ultra Low Latency Execution
 
-For ultra low latency FPGA engines and live order book execution where hardware transcendental units (`tanh`, `exp`) impose clock cycle latency, FastQALU utilizes algebraic Padé approximants:
+For ultra low latency FPGA engines and live order book execution where hardware transcendental units (`tanh`, `exp`) impose clock cycle latency, FastQALU replaces both transcendental branches with algebraic rational functions:
 
-$$f_{\text{fast}}(x) = \begin{cases} \alpha \cdot x \cdot \left(1 + \frac{x/\beta}{\sqrt{1 + (x/\beta)^2}}\right), & \text{for } x \ge 0 \\ \gamma \cdot x \cdot \left(\frac{u^2 + 2u}{u^2 + 3u + 2.5}\right), & \text{for } x < 0 \quad (u = |x/\delta|) \end{cases}$$
+$$f_{\text{fast}}(x) = \begin{cases} \alpha \cdot x \cdot \left(1 + \dfrac{u}{\sqrt{1 + u^2}}\right), & x \ge 0,\; u = x/\beta \\[1ex] \gamma \cdot x \cdot \dfrac{N(u)}{1 + N(u)}, & x < 0,\; u = -x/\delta \end{cases}$$
 
-This non-transcendental rational formulation completely eliminates exponential and hyperbolic evaluations while preserving the asymmetric dual regime behavior.
+$$N(u) = u\left(1 + u\left(0.55 + u\left(0.05 + 0.10u\right)\right)\right)$$
+
+This non-transcendental rational formulation eliminates exponential and hyperbolic evaluations while preserving the asymmetric dual regime behavior. The quartic numerator is the $[4/4]$ Padé-type approximant of $1 - e^{-u}$ fitted under the constraints $N(0) = 0$, $N'(0) = 1$, $N(u) \ge 0$:
+
+* **Origin consistency:** $r(0) = 0$, $r'(0) = 1$, so the quadratic noise-suppression zone and $f'_{\text{fast}}(0^-) = 0$ are preserved exactly to first order.
+* **Bounded error:** maximum relative error $0.53\%$ in value and $0.74\%$ in gradient on $u \in [0, 20]$ (verified by `experiments/cpp_check.cpp`).
+* **Positive denominator:** $1 + N(u) \ge 1$ for all $u \ge 0$, hence no poles.
+* **Preserved overshoot:** the downside gradient still peaks at $1.1312\gamma$ ($+13.12\%$) for $u \approx 1.97$, versus the exact $1.1353\gamma$ ($+13.53\%$) at $u = 2$. The positive branch is coarser: the fast-tanh substitution is accurate to $8.1\%$ in shape and $3.8\%$ in $f$, and shifts the momentum peak from $1.1997\beta$ ($+10.0\%$) to $\sqrt{2}\beta$ ($+4.4\%$).
+* **Numerical form:** $N/(1+N)$ is used instead of $1 - 1/(1+N)$, which would lose $4.6\%$ relative accuracy in FP32 at $u \approx 10^{-6}$, $19\%$ at $10^{-7}$ and $100\%$ at $10^{-8}$ to cancellation. Inputs are clamped at $u = 10^{4}$, where the surrogate equals $1.0$ in FP32; without the clamp $u^4$ overflows for $|x| > 10^{7}$ and the quotient degenerates to $\text{NaN}$.
 
 ---
 
@@ -203,8 +213,8 @@ When an agent policy is parameterized by weights $\mathbf{\theta}$, the gradient
 $$\nabla_{\mathbf{\theta}} \text{Sortino} \propto \sum_{t} \left[ \frac{\nabla_{\mathbf{\theta}} R_t}{\sigma_D} - \frac{\mathbb{E}[R] - R_f}{\sigma_D^3} \min(0, R_t - R_f) \nabla_{\mathbf{\theta}} R_t \right]$$
 
 Under standard symmetric activations (such as GELU or LeakyReLU), negative activations transmit linear or sub-linear errors. Q-ALU explicitly aligns with the Sortino denominator $\sigma_D$:
-1. For small losses $x \in [-\delta, 0]$, $f'(x) \approx 0$, preventing micro-noise from inflating perceived downside volatility.
-2. For severe losses $x < -2\delta$, the gradient spikes by $1.135\gamma$, amplifying the backpropagated error signal. This forces the value network in PPO to rapidly lower the expected value of holding losing positions, commanding immediate execution of protective cut loss trades.
+1. For small losses $x \in [-\delta, 0]$, the function is quadratic, $f(x) \approx -\gamma x^2/\delta$, hence $f'(x) \approx 2\gamma|x|/\delta$. The gradient is not zero but rises linearly, reaching $0.186\gamma$ at $x = -0.1\delta$ and the full $\gamma$ at $x = -\delta$: only the band $|x| < 0.1\delta$ is damped by roughly two orders of magnitude, which is enough to keep tick-size noise out of the downside volatility estimate without creating a dead zone.
+2. For losses beyond $x = -\delta$ the gradient exceeds $\gamma$ monotonically, peaks at $1.1353\gamma$ exactly at $x = -2\delta$ ($+13.53\%$), and then relaxes toward the linear asymptote $\gamma$. This is a localized amplification window, not an unbounded spike, so the backpropagated signal on severe losses is 13.5% stronger than a pure linear cut-loss without risking exploding gradients.
 
 ---
 
@@ -245,84 +255,89 @@ To evaluate Q-ALU under realistic high frequency market microstructure, we const
 3. **Regime 3 (Ticks 5500 to 6500): Flash Crash.** Severe negative liquidation drift ($-15$ bps/tick) with heavy-tailed jump arrivals ($-50$ bps) and volatility clustering ($2.5\times$ base).
 4. **Regime 4 (Ticks 6500 to 10000): High-Volatility Recovery.** Mean-reverting noisy channel.
 
-**Trading Policy Network:** A 2-hidden layer MLP (32 neurons, 16 neurons) was trained on In-Sample data (first 5,000 ticks) and evaluated out of sample on unseen market regimes (ticks 5,000 to 10,000) under a strict transaction cost fee of **$1.0$ basis point ($0.0001$) per position turnover**.
+**Trading Policy Network:** A 2-hidden layer MLP (32 neurons, 16 neurons) maps seven features (five lagged returns, a rolling 20-tick volatility, an EMA(12)/EMA(26) MACD spread) to three discrete positions $\{-1, 0, +1\}$. The policy is trained by REINFORCE with a per-step value baseline on the in-sample stream (first 5,000 ticks) for 300 full-batch epochs and evaluated out of sample on ticks 5,000 to 10,000 under a transaction cost of **1.0 basis point per position turnover**; the reward is $r_t = p_t \Delta\text{return}_t - c|p_t - p_{t-1}|$.
+
+**Paired protocol:** every activation is trained with the same market seed *and* the same initial weight tensor, so the only difference between two runs is the activation function. Five seeds $\{42, 101, 777, 2026, 9999\}$ are used, and all comparisons are reported as paired differences with $n = 5$. The complete experiment is `experiments/trading_benchmark.py`; Table I is reproduced by `--epochs 300`.
 
 ### B. Realistic Quant Metrics Evaluation
 To avoid misleading high frequency annualization distortions (where tick level multiplier $\sqrt{N_{\text{ticks}}}$ artificially inflates Sharpe ratios into hundreds), we evaluate models strictly on standard non-annualized quant metrics:
 * **Out of Sample Return (%)**: Cumulative equity growth over the test period.
 * **Per-Step Sharpe Ratio**: $\mu_{\text{step}} / \sigma_{\text{step}}$ (un-annualized).
-* **Profit Factor**: $\sum \text{Gains} / \sum \text{Losses}$.
+* **Per-Step Sortino Ratio**: $\mu_{\text{step}} / \sigma_{D,\text{step}}$ (un-annualized).
+* **Profit Factor**: $\sum \text{Gains} / \sum |\text{Losses}|$.
 * **Maximum Drawdown (MDD %)**: Peak to trough decline.
 * **Total Position Turnover**: Number of trades executed.
 
 TABLE I presents the comparative out of sample quantitative metrics across baseline activations:
 
-| Activation Function | Out of Sample Return (%) | Per-Step Sharpe | Profit Factor | Max Drawdown (%) | Total Trades |
-| :--- | :---: | :---: | :---: | :---: | :---: |
-| **Q-ALU** | **+75.85%** | **0.093** | **2.09** | **2.79%** | **799** |
-| **ReLU** [5] | +5.43% | 0.032 | 3.83 | 0.95% | 42 |
-| **LeakyReLU** [6] | +5.11% | 0.030 | 3.11 | 0.95% | 48 |
-| **GELU** [7] | +1.42% | 0.023 | 36.39 | 0.01% | 8 |
-| **SiLU (Swish)** [8] | 0.00% | 0.000 | 0.00 | 0.00% | 0 |
+| Activation Function | Out of Sample Return (%) | Per-Step Sharpe | Per-Step Sortino | Profit Factor | Max Drawdown (%) | Total Trades |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: |
+| **Q-ALU** | +373.51 ± 27.39 | +0.489 ± 0.030 | +1.083 ± 0.129 | 4.37 ± 0.46 | 6.02 ± 1.33 | 718.2 ± 23.4 |
+| **ReLU** [5] | +378.81 ± 40.32 | +0.498 ± 0.054 | +1.099 ± 0.232 | 4.56 ± 0.84 | 4.91 ± 1.47 | 761.2 ± 39.9 |
+| **LeakyReLU** [6] | +383.70 ± 42.02 | +0.506 ± 0.057 | +1.140 ± 0.250 | 4.69 ± 0.86 | 4.48 ± 1.65 | 756.4 ± 46.1 |
+| **GELU** [7] | +393.58 ± 16.23 | +0.521 ± 0.014 | +1.182 ± 0.098 | 4.86 ± 0.25 | 4.81 ± 1.70 | 737.2 ± 88.7 |
+| **SiLU (Swish)** [8] | **+396.08 ± 20.61** | **+0.525 ± 0.025** | **+1.201 ± 0.086** | **4.94 ± 0.41** | **4.47 ± 1.46** | 733.2 ± 96.8 |
 
-![Figure 3: Out of Sample Cumulative Equity Performance Across Market Regimes](figures/fig5_equity_curves.png)
+![Figure 5: Out of Sample Cumulative Equity, Mean over 5 Paired Seeds](figures/fig5_equity_curves.png)
 
-*Fig. 5. Out of sample cumulative equity performance over 5,000 unseen ticks across 4 distinct market regimes (Choppy Sideways, Bullish Breakout, Flash Crash, Recovery) under 1.0 bps fee per turnover. Q-ALU achieves +75.85% return vs +5.43% for ReLU and +1.42% for GELU.*
+*Fig. 5. Out of sample cumulative equity averaged over the five seeds of Table I, over 5,000 unseen ticks across 4 market regimes under 1.0 bps fee per turnover. All activations ride the same regime-2 drift; the curves are statistically indistinguishable and Q-ALU does not lead. Generated by `experiments/trading_benchmark.py --plot`.*
 
-### C. Real World Empirical Evaluation on BTC/USDT Market Data
-To validate that Q-ALU performance is not an artifact of synthetic data generators, we acquired **2,834 real world consecutive 15-minute bars of BTC/USDT** spanning volatile market regimes from historical market feeds. Features extracted include 5 lag returns, EMA(12)/EMA(26) MACD spread, and rolling 20-period volatility. 
+### C. What the Benchmark Actually Shows
+Three observations follow from Table I, and none of them supports the claim that Q-ALU dominates.
 
-Models were trained on 60% in-sample data (1,684 bars) and evaluated out of sample on 40% unseen data (1,123 bars) under a strict 1.0 bps turnover fee. Over 5 random initializations, Q-ALU demonstrated consistent positive alpha generation (+7.23% to +12.84% excess trend return) and superior fee resistance compared to baseline architectures.
+**(i) No policy paralysis occurs for any activation.** Individual runs trade between 574 and 819 times out of a possible 5,000, and the spread between activation means (718 to 761) is 6%; the lowest mean belongs to Q-ALU. The premise that symmetric activations collapse to near-zero turnover under a 1.0 bps fee is not reproduced: all five policies capture the regime-2 drift and pay fees on roughly the same number of flips.
 
-### D. Deep Temporal Architectures: 1D-CNN and LSTM Validation
-To prove that Q-ALU generalizes beyond simple multi-layer perceptrons, we incorporated Q-ALU into a **Temporal 1D Convolutional Neural Network (1D-CNN)** consisting of 16 filters with kernel size 3 operating over multi-lag feature channels. The inductive bias of Q-ALU remained remarkably robust, preserving gradient propagation through the convolutional feature extractor while suppressing false activations induced by bid ask bounce noise.
+**(ii) Q-ALU is slightly *worse* on return and risk-adjusted return.** Paired over identical seeds and initial weights, Q-ALU trails GELU by 20.1 percentage points of return ($t = -3.65$) and SiLU by 22.6 points ($t = -4.51$); on the Sortino ratio it trails by 0.099 ($t = -2.20$) and 0.118 ($t = -3.55$). With $n = 5$ and a two-sided 5% critical value of 2.78, the gap against GELU and SiLU is significant, and against ReLU and LeakyReLU it is not ($t = -0.58$ and $-0.87$).
 
-### E. Multi Seed Statistical Significance
-To ensure that superior performance is not the result of random seed lottery, we conducted 5 independent Monte Carlo runs across distinct initializations and market seeds ($s \in \{42, 101, 777, 2026, 9999\}$). Reported in $\text{Mean} \pm \text{Std}$:
-* **Q-ALU**: Return: $14.86\% \pm 6.52\%$, Profit Factor: $1.42 \pm 0.18$, MDD: $7.81\% \pm 2.10\%$.
-* **ReLU Baseline**: Return: $2.63\% \pm 5.50\%$, Profit Factor: $1.15 \pm 0.22$, MDD: $23.56\% \pm 4.30\%$.
-* **GELU Baseline**: Return: $-6.65\% \pm 4.81\%$, Profit Factor: $0.88 \pm 0.19$, MDD: $22.05\% \pm 3.90\%$.
+**(iii) The only consistent Q-ALU effect is lower turnover, at the cost of deeper drawdowns.** Q-ALU executes 43 fewer trades than ReLU on average ($t = -3.59$), which is what its quadratic noise band predicts, but its maximum drawdown is the highest of the five (6.02% versus 4.47% for SiLU, paired difference +1.55 pp, $t = +2.42$): the reduced trading does not translate into better downside protection. Because regime 2 contributes the bulk of the return and all policies are long through it, the activation is nearly irrelevant to the mean return (seed noise of ±27 to ±42 percentage points dwarfs the 22 point spread between activations); what differs is how quickly each policy reacts to the flash crash in regime 3.
 
-The results confirm that Q-ALU achieves statistically significant superiority ($p < 0.01$) over standard activations.
+### D. Reproducibility Note
+An earlier draft reported +75.85% out-of-sample return for Q-ALU against +5.43% for ReLU and +1.42% for GELU, with the baselines collapsing to 0–8 trades, plus a 2,834-bar BTC/USDT evaluation and a 1D-CNN/LSTM study. Those results could not be reproduced from the repository: no script, seed list or data file for them was preserved, and the best out-of-sample return obtained by any run in the protocol above is +423%, for *every* activation, with no run anywhere near 0–8 trades. The figures are therefore withdrawn rather than re-tuned. Table I is the complete, runnable replacement, and its verdict is that Q-ALU is competitive with, but not superior to, standard activations on this task.
 
 ---
 
-### F. Hardware Latency and Computational Throughput
-Benchmarked on an Intel Core processor across 100,000 FP32 elements over 100 iterations:
+### E. Hardware Latency and Computational Throughput
+Benchmarked on a single-threaded x86-64 CPU (Intel Celeron N2930, `torch 2.15.0+cpu`, FP32, $n = 100{,}000$ elements, 200 iterations, best of 3; `experiments/benchmark.py`). The backward column is the backward call alone, $t(\text{forward}+\text{backward}) - t(\text{forward})$.
 
-TABLE II: COMPUTATIONAL THROUGHPUT BENCHMARK (100,000 ELEMENTS)
+TABLE II: COMPUTATIONAL THROUGHPUT BENCHMARK (100,000 FP32 ELEMENTS, SINGLE THREAD)
 
-| Activation Function | Forward Pass (ms) | Backward Pass (ms) | Throughput (Million Samples/s) |
+| Activation Function | Forward Pass (ms) | Backward Pass (ms) | Forward Throughput (M/s) |
 | :--- | :---: | :---: | :---: |
-| **ReLU** | 0.747 ms | 0.804 ms | 133.92 M/s |
-| **LeakyReLU** | 1.646 ms | 5.088 ms | 60.74 M/s |
-| **FastQALU** | **27.181 ms** | **0.308 ms** | **3.68 M/s** |
-| **Q-ALU** | 40.947 ms | 57.823 ms | 2.44 M/s |
-| **GELU** | 44.686 ms | 48.535 ms | 2.24 M/s |
-| **SiLU** | 5.760 ms | 12.874 ms | 17.36 M/s |
+| **ReLU** | 0.334 ms | 2.547 ms | 299.29 M/s |
+| **LeakyReLU** | 1.696 ms | 2.661 ms | 58.98 M/s |
+| **SiLU** | 3.375 ms | 4.415 ms | 29.63 M/s |
+| **GELU** | 2.678 ms | 4.234 ms | 37.34 M/s |
+| **FastQALU** | **10.384 ms** | **22.600 ms** | **9.63 M/s** |
+| **Q-ALU 2.0** | 15.764 ms | 20.413 ms | 6.34 M/s |
+| **Q-ALU Ultra** | 16.427 ms | 14.807 ms | 6.09 M/s |
+| **Q-ALU** | 17.064 ms | 17.881 ms | 5.86 M/s |
 
-FastQALU achieves a **$1.5\times$ speedup** over transcendental Q-ALU and matches or exceeds GELU throughput while providing an ultra fast backward execution of 0.308 ms.
+FastQALU is **1.64× faster than transcendental Q-ALU in the forward pass** and **1.27× faster end-to-end** (33.0 ms vs 34.9 ms per forward+backward on 100k elements), because the algebraic surrogate trades both `tanh` and `exp` for a square root plus a handful of multiply-adds. It does not match GELU: GELU remains 3.9× faster in the forward pass on this CPU, so the rational branch pays off only where transcendental units are unavailable or where the kernel is fused, not as a general throughput win.
 
 ---
 
 ## VII. Practical Deployment and Weight Initialization
 
 For input $X \sim \mathcal{N}(0, 1)$ under default parameters $(\alpha=1.0, \beta=1.0, \gamma=1.5, \delta=0.5)$:
-* The output distribution exhibits a positive mean drift: $\mathbb{E}[f(X)] \approx +0.1974$.
-* The output second moment is $\mathbb{E}[f(X)^2] \approx 2.6902$, yielding an **effective gain** of $\approx 1.64$ (compared to $\sqrt{2} \approx 1.414$ for ReLU).
+* The output distribution exhibits a positive mean drift: $\mathbb{E}[f(X)] \approx +0.1976$.
+* The output second moment is $\mathbb{E}[f(X)^2] \approx 2.6903$ (Monte Carlo, $2\times10^7$ samples), giving RMS $\approx 1.6402$; with $\mathbb{E}[f(X)] \approx +0.1976$ the standard deviation is $1.6283$, so the variance-preserving gain is $1/1.6283 \approx 0.6142$ (ReLU's is $\sqrt{2} \approx 1.414$). The two conventions differ and must not be mixed: RMS $1.640$ exceeds ReLU's RMS $0.707$, yet the initialization scale $0.614$ is *smaller* than ReLU's $\sqrt{2}$.
 
 **Initialization Recommendation:**
 When training deep networks ($>3$ layers) without normalization, weights should be initialized using a modified Kaiming Normal scaling:
-$$\mathbf{W} \sim \mathcal{N}\left(0, \frac{0.6097}{\sqrt{\mathrm{fan\_in}}}\right)$$
+$$\mathbf{W} \sim \mathcal{N}\left(0, \frac{0.6142}{\sqrt{\mathrm{fan\_in}}}\right)$$
 In modern architectures, pairing Q-ALU directly with `nn.LayerNorm` or `nn.RMSNorm` completely absorbs the mean shift and preserves unit variance across arbitrarily deep layers.
 
 ---
 
 ## VIII. Conclusion and Future Work
 
-This paper presented **Q-ALU (Quant Asymmetric Leaky Unit)**, a novel activation function custom designed to bridge the gap between deep reinforcement learning and the asymmetric realities of financial market microstructure. By unifying momentum-accelerated upside tracking with an exponential to linear downside barrier, Q-ALU embeds behavioral prospect theory and microstructure noise filtering directly into network calculus. 
+This paper presented **Q-ALU (Quant Asymmetric Leaky Unit)**, an activation function designed to express asymmetric downside risk preferences directly in network calculus: momentum-accelerated tracking on the positive domain, a quadratic noise band followed by an exponential-to-linear cut-loss barrier on the negative domain.
 
-Theoretical analysis proved global monotonicity ($f'(x) \ge 0, \, \forall x \in \mathbb{R}$) and identified the $+13.53\%$ *Dynamic Gradient Overshoot* at $x = -2\delta$. Empirical evaluations across multi regime simulations and 2,834 real world BTC/USDT bars confirmed that Q-ALU delivers dramatic improvements in cumulative returns (+75.85\%), Profit Factor (2.09), and fee resistance under real transaction costs. Future work will investigate the deployment of Q-ALU within multi-asset cross-attention Financial Transformers and order-flow execution algorithms in institutional LOB environments.
+The theoretical results stand on their own: global monotonicity ($f'(x) \ge 0, \ \forall x \in \mathbb{R}$), $C^0$ continuity at the origin, and a bounded *Dynamic Gradient Overshoot* that peaks at $1.1353\gamma$ at $x = -2\delta$ and relaxes to the linear asymptote. The implementation contributions also stand: the $0 \times \infty$ autograd hazard is removed, the cancellation-prone exponential is replaced by `expm1`, the rational FastQALU surrogate is accurate to 0.53% and 1.64× faster in the forward pass, and the Python, C++ and CUDA paths agree to finite-difference tolerance.
+
+The empirical claim does not survive. Under a fully reproducible multi-regime benchmark with paired seeds, Q-ALU does not outperform ReLU, LeakyReLU, GELU or SiLU on return, Sharpe or Sortino; the predicted turnover collapse does not occur for any activation; and Q-ALU's only measurable signature is a modest reduction in trading frequency accompanied by a deeper drawdown. We therefore withdraw the trading results of the earlier draft (+75.85% versus +5.43% for ReLU) as non-reproducible rather than restate them, and we frame Q-ALU as a principled, numerically robust activation whose behavioural hypotheses about trading performance were tested and, in this setting, not confirmed.
+
+Future work should attack the question the benchmark could not settle: whether asymmetric activations change learning dynamics under the exact algorithm that motivated the design. A PPO agent with a value network, entropy collapse and clip-based credit assignment has failure modes (premature policy determinism) that a contextual-bandit formulation cannot exhibit, so a PPO-specific study with turnover and entropy diagnostics is the natural next experiment. Beyond that, the open questions are whether the overshoot window at $x = -2\delta$ changes behaviour in deeper temporal architectures, and whether the same asymmetry helps in non-financial settings where downside asymmetry is real, such as risk-sensitive control and survival-constrained RL.
 
 ---
 

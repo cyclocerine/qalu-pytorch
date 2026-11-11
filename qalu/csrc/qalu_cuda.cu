@@ -1,6 +1,13 @@
 #include <cuda_runtime.h>
 #include <math.h>
 
+// Saturation point of the FastQALU rational branch (kept in sync with qalu.hpp).
+// For u >= 1e4 the surrogate is 1.0 within FP32 resolution; clamping prevents
+// u^4 from overflowing to +inf and producing inf/inf = NaN.
+#ifndef QALU_FAST_U_MAX
+#define QALU_FAST_U_MAX 1.0e4f
+#endif
+
 /**
  * Q-ALU CUDA Kernels
  * Optimized for NVIDIA Tensor Core architectures (Ampere / Ada Lovelace / Blackwell / RTX 5090).
@@ -144,7 +151,7 @@ __global__ void qalu_ultra_forward_kernel_fp32(
         float v_ratio = (vol_ratios != nullptr) ? vol_ratios[idx] : 1.0f;
         float eff_beta = (beta + fee_threshold) * v_ratio;
         float eff_delta = (delta + fee_threshold) * v_ratio;
-        float gamma = 2.0f * alpha * loss_aversion;
+        float gamma = 2.0f * alpha * (1.0f + loss_aversion);
 
         if (x >= 0.0f) {
             float u = x / eff_beta;
@@ -154,6 +161,44 @@ __global__ void qalu_ultra_forward_kernel_fp32(
             float u = x / eff_delta;
             output[idx] = -gamma * x * expm1f(u);
         }
+    }
+}
+
+// =========================================================================
+// BACKWARD KERNEL: Q-ALU Ultra (Dynamic Volatility Conditioning)
+// =========================================================================
+__global__ void qalu_ultra_backward_kernel_fp32(
+    const float* __restrict__ grad_output,
+    const float* __restrict__ input,
+    const float* __restrict__ vol_ratios,
+    float* __restrict__ grad_input,
+    int size,
+    float alpha,
+    float beta,
+    float delta,
+    float fee_threshold,
+    float loss_aversion)
+{
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx < size) {
+        float x = input[idx];
+        float dy = grad_output[idx];
+        float v_ratio = (vol_ratios != nullptr) ? vol_ratios[idx] : 1.0f;
+        float eff_beta = (beta + fee_threshold) * v_ratio;
+        float eff_delta = (delta + fee_threshold) * v_ratio;
+        float gamma = 2.0f * alpha * (1.0f + loss_aversion);
+        float dx = 0.0f;
+
+        if (x >= 0.0f) {
+            float u = x / eff_beta;
+            float t = tanhf(u);
+            float sech2 = 1.0f - t * t;
+            dx = alpha * (t + t * t + u * sech2 * (1.0f + 2.0f * t));
+        } else {
+            float u = x / eff_delta;
+            dx = -gamma * (expm1f(u) + u * expf(u));
+        }
+        grad_input[idx] = dy * dx;
     }
 }
 
@@ -178,10 +223,9 @@ __global__ void fast_qalu_forward_kernel_fp32(
             output[idx] = alpha * x * (1.0f + t);
         } else {
             float u = -x / delta;
-            float u2 = u * u;
-            float num = u2 + 2.0f * u;
-            float den = u2 + 3.0f * u + 2.5f;
-            output[idx] = gamma * x * (num / den);
+            if (u > QALU_FAST_U_MAX) u = QALU_FAST_U_MAX;
+            float n = u * (1.0f + u * (0.55f + u * (0.05f + 0.10f * u)));
+            output[idx] = gamma * x * (n / (1.0f + n));
         }
     }
 }
@@ -213,12 +257,12 @@ __global__ void fast_qalu_backward_kernel_fp32(
             dx = alpha * (1.0f + t + u * dt_du);
         } else {
             float u = -x / delta;
-            float num = u * u * u + 2.0f * u * u;
-            float den = u * u + 3.0f * u + 2.5f;
-            float dnum = 3.0f * u * u + 4.0f * u;
-            float dden = 2.0f * u + 3.0f;
-            float d_ratio = (dnum * den - num * dden) / (den * den);
-            dx = gamma * d_ratio;
+            if (u > QALU_FAST_U_MAX) u = QALU_FAST_U_MAX;
+            float n = u * (1.0f + u * (0.55f + u * (0.05f + 0.10f * u)));
+            float p = 1.0f + u * (0.55f + u * (0.05f + 0.10f * u));
+            float q = 1.0f + u * (1.1f + u * (0.15f + 0.4f * u));
+            float r = n / (1.0f + n);
+            dx = gamma * (r + (q / p) * r * (1.0f - r));
         }
         grad_input[idx] = dy * dx;
     }

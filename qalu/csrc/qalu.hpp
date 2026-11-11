@@ -70,10 +70,13 @@ inline float backward_v2(float x, float alpha = 1.0f, float beta = 1.0f, float g
 }
 
 // Q-ALU Ultra (Adaptive Volatility & Fee-Aware)
-inline float forward_ultra(float x, float vol_ratio, float fee_threshold = 0.01f, 
-                           float alpha = 1.0f, float beta = 1.0f, float gamma = 2.5f, float delta = 0.5f) {
+// gamma follows the Python reference: gamma = 2 * alpha * (1 + loss_aversion).
+inline float forward_ultra(float x, float vol_ratio, float fee_threshold = 0.01f,
+                           float alpha = 1.0f, float beta = 1.0f, float delta = 0.5f,
+                           float loss_aversion = 2.25f) {
     float eff_beta = (beta + fee_threshold) * vol_ratio;
     float eff_delta = (delta + fee_threshold) * vol_ratio;
+    float gamma = 2.0f * alpha * (1.0f + loss_aversion);
     if (x >= 0.0f) {
         float u = x / eff_beta;
         float t = std::tanh(u);
@@ -84,6 +87,35 @@ inline float forward_ultra(float x, float vol_ratio, float fee_threshold = 0.01f
     }
 }
 
+// Q-ALU Ultra Backward (dL/dx), same conditioning as forward_ultra
+inline float backward_ultra(float x, float vol_ratio, float fee_threshold = 0.01f,
+                            float alpha = 1.0f, float beta = 1.0f, float delta = 0.5f,
+                            float loss_aversion = 2.25f) {
+    float eff_beta = (beta + fee_threshold) * vol_ratio;
+    float eff_delta = (delta + fee_threshold) * vol_ratio;
+    float gamma = 2.0f * alpha * (1.0f + loss_aversion);
+    if (x >= 0.0f) {
+        float u = x / eff_beta;
+        float t = std::tanh(u);
+        float sech2 = 1.0f - t * t;
+        return alpha * (t + t * t + u * sech2 * (1.0f + 2.0f * t));
+    } else {
+        float u = x / eff_delta;
+        return -gamma * (std::expm1(u) + u * std::exp(u));
+    }
+}
+
+// Rational surrogate of 1 - exp(-u) for u >= 0 (see paper, Eq. 12).
+// [4/4] Pade-type approximant, r(0)=0, r'(0)=1, r(inf)=1, denominator >= 1.
+inline float fast_neg_shape(float u) {
+    float n = u * (1.0f + u * (0.55f + u * (0.05f + 0.10f * u)));
+    return n / (1.0f + n);
+}
+
+// Saturation point: for u >= 1e4 the surrogate is 1.0 to within FP32 resolution.
+// Clamping there stops u^4 from overflowing to +inf (inf/inf = NaN) for |x| > 1e7.
+#define QALU_FAST_U_MAX 1.0e4f
+
 // FastQALU (Non-transcendental Algebraic Rational Approximation)
 inline float forward_fast(float x, float alpha = 1.0f, float beta = 1.0f, float gamma = 1.5f, float delta = 0.5f) {
     if (x >= 0.0f) {
@@ -92,10 +124,8 @@ inline float forward_fast(float x, float alpha = 1.0f, float beta = 1.0f, float 
         return alpha * x * (1.0f + t);
     } else {
         float u = -x / delta;
-        float u2 = u * u;
-        float num = u2 + 2.0f * u;
-        float den = u2 + 3.0f * u + 2.5f;
-        return gamma * x * (num / den);
+        if (u > QALU_FAST_U_MAX) u = QALU_FAST_U_MAX;
+        return gamma * x * fast_neg_shape(u);
     }
 }
 
@@ -108,16 +138,17 @@ inline float backward_fast(float x, float alpha = 1.0f, float beta = 1.0f, float
         float dt_du = inv_s * inv_s * inv_s; // 1 / (1 + u^2)^(3/2)
         return alpha * (1.0f + t + u * dt_du);
     } else {
-        // u = -x / delta => x = -delta * u, dx/du = -delta
-        // f(x) = -gamma * delta * (u^3 + 2u^2) / (u^2 + 3u + 2.5)
-        // df/dx = (-1/delta) * df/du = gamma * d/du [(u^3 + 2u^2) / (u^2 + 3u + 2.5)]
+        // u = -x/delta, r = n/(1+n) => df/dx = gamma * (r + u * r')
+        // with r' = (n'/n) * r * (1-r) and p = n/u, q = n':
+        //     df/dx = gamma * (r + (q/p) * r * (1-r))
+        // Overflow-free: n*(1+n) would exceed FP32 range for u > ~1e5.
         float u = -x / delta;
-        float num = u * u * u + 2.0f * u * u;
-        float den = u * u + 3.0f * u + 2.5f;
-        float dnum = 3.0f * u * u + 4.0f * u;
-        float dden = 2.0f * u + 3.0f;
-        float d_ratio = (dnum * den - num * dden) / (den * den);
-        return gamma * d_ratio;
+        if (u > QALU_FAST_U_MAX) u = QALU_FAST_U_MAX;
+        float n = u * (1.0f + u * (0.55f + u * (0.05f + 0.10f * u)));
+        float p = 1.0f + u * (0.55f + u * (0.05f + 0.10f * u));  // n / u
+        float q = 1.0f + u * (1.1f + u * (0.15f + 0.4f * u));    // n'
+        float r = n / (1.0f + n);
+        return gamma * (r + (q / p) * r * (1.0f - r));
     }
 }
 
